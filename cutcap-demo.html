@@ -34,7 +34,12 @@
   html,body{width:100%;height:100%}
   body{ font-family:var(--font);font-size:13px;color:var(--text);background:var(--bg);overflow:hidden; }
   /* ===== panel shell — fills the embed frame, like a docked panel ===== */
-  .panel{ width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;position:relative;zoom:1; }
+  /* UI-size scales the whole panel via `zoom`. Because width/height are % of the
+     embed frame (not viewport units), Chrome's `zoom` already renders them at the
+     frame's size — so the panel keeps filling the frame at any zoom and the list
+     scrolls internally instead of overflowing + clipping. (Do NOT divide by the
+     zoom here; that only applies to `vh`/`vw` units, as in the docked panel.) */
+  .panel{ width:100%;height:100%;zoom:var(--ui-zoom,1);background:var(--bg);display:flex;flex-direction:column;overflow:hidden;position:relative; }
   .cutcap-logo{ width:20px;height:auto;color:var(--accent); }
   /* ===== toolbar ===== */
   .toolbar{ display:flex;align-items:center;gap:6px;padding:9px 10px;border-bottom:1px solid var(--border);background:var(--surface); }
@@ -167,8 +172,30 @@
   .accent-row{display:flex;align-items:center;gap:8px}
   .swatch{width:30px;height:30px;border-radius:var(--r);border:1px solid var(--border-hi);background:var(--accent);cursor:pointer}
   .hexin{width:98px;height:30px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:0 8px;font-family:var(--mono);font-size:12px;text-transform:uppercase}
-  .swatches{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-  .sw{width:24px;height:24px;border-radius:var(--r);border:1px solid var(--border-hi);cursor:pointer}
+  /* ===== accent color picker (hue ring + SV square + HSB sliders + hex/RGB) — ported from the panel ===== */
+  .color-picker{display:flex;flex-direction:column;gap:12px;margin-top:12px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg)}
+  .color-picker[hidden]{display:none}
+  .picker-wheel-wrap{position:relative;width:168px;height:168px;margin:0 auto}
+  #pickerWheel{display:block;width:168px;height:168px;cursor:pointer}
+  .picker-knob{position:absolute;top:0;left:0;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.6);pointer-events:none}
+  .picker-sv{position:absolute;top:50%;left:50%;width:92px;height:92px;transform:translate(-50%,-50%);border-radius:var(--r);cursor:crosshair}
+  .picker-sv-white,.picker-sv-black{position:absolute;inset:0;border-radius:inherit;pointer-events:none}
+  .picker-sv-white{background:linear-gradient(to right,#fff,rgba(255,255,255,0))}
+  .picker-sv-black{background:linear-gradient(to top,#000,rgba(0,0,0,0))}
+  .picker-sliders{display:flex;flex-direction:column;gap:8px}
+  .picker-slider-row{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--text-dim)}
+  .picker-slider-row>span:first-child{width:12px;font-weight:700;text-align:center}
+  .picker-slider-val{width:28px;text-align:right;font-variant-numeric:tabular-nums}
+  .picker-range{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:10px;border:1px solid var(--border);border-radius:999px;background:var(--surface-hi);outline:none;cursor:pointer}
+  .picker-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid rgba(0,0,0,.5)}
+  #pickerH{background:linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%)}
+  .picker-values{display:flex;align-items:flex-end;gap:5px}
+  .picker-field{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted)}
+  .picker-field-hex{flex:1;min-width:0}
+  .picker-field input{width:100%;box-sizing:border-box;min-width:0;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:4px 5px;font-family:var(--mono);font-size:11px;outline:none}
+  .picker-field input:focus{border-color:var(--accent)}
+  .picker-field-num{flex:none}
+  .picker-field-num input{width:30px;text-align:center;padding:4px 2px}
   /* ===== toast — ONE at a time, same spot ===== */
   .toast-wrap{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);pointer-events:none;z-index:80}
   .toast{display:flex;align-items:center;gap:9px;background:var(--surface-hi);border:1px solid var(--border-hi);padding:9px 14px;border-radius:999px;font-size:12.5px;color:var(--text);box-shadow:var(--shadow-pop);opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;white-space:nowrap}
@@ -288,13 +315,35 @@
               </div>
               <div class="srow">
                 <div class="slabel">Accent color</div>
-                <div class="sdesc">The highlight color for buttons, selections and toggles. Click the swatch or pick a preset.</div>
+                <div class="sdesc">The highlight color for buttons, selections and toggles. Click the swatch to pick any color.</div>
                 <div class="accent-row">
-                  <label class="swatch" id="accentSwatch"><input type="color" id="accentColor" value="#f03d13" style="opacity:0;width:0;height:0;position:absolute"></label>
+                  <button class="swatch" id="accentSwatch" title="Change accent color" aria-label="Change accent color" aria-expanded="false"></button>
                   <input class="hexin" id="accentHex" value="#F03D13" spellcheck="false">
                   <button class="sbtn" id="accentReset">Reset</button>
                 </div>
-                <div class="swatches" id="accentPresets"></div>
+                <!-- Expanding picker: hue ring + SV square, HSB sliders, hex/RGB (ported from the shipping panel) -->
+                <div class="color-picker" id="colorPicker" hidden>
+                  <div class="picker-wheel-wrap">
+                    <canvas id="pickerWheel" width="336" height="336" aria-hidden="true"></canvas>
+                    <div class="picker-sv" id="pickerSv" title="Saturation / brightness">
+                      <div class="picker-sv-white"></div>
+                      <div class="picker-sv-black"></div>
+                      <div class="picker-knob" id="pickerSvThumb"></div>
+                    </div>
+                    <div class="picker-knob" id="pickerHueKnob"></div>
+                  </div>
+                  <div class="picker-sliders">
+                    <label class="picker-slider-row"><span>H</span><input type="range" id="pickerH" class="picker-range" min="0" max="360" step="1" aria-label="Hue"><span class="picker-slider-val" id="pickerHVal">0</span></label>
+                    <label class="picker-slider-row"><span>S</span><input type="range" id="pickerS" class="picker-range" min="0" max="100" step="1" aria-label="Saturation"><span class="picker-slider-val" id="pickerSVal">0</span></label>
+                    <label class="picker-slider-row"><span>B</span><input type="range" id="pickerB" class="picker-range" min="0" max="100" step="1" aria-label="Brightness"><span class="picker-slider-val" id="pickerBVal">0</span></label>
+                  </div>
+                  <div class="picker-values">
+                    <label class="picker-field picker-field-hex">Hex<input type="text" id="pickerHex" spellcheck="false" autocomplete="off" placeholder="#F03D13" aria-label="Hex color value"></label>
+                    <label class="picker-field picker-field-num">R<input type="text" id="pickerR" inputmode="numeric" autocomplete="off" aria-label="Red 0-255"></label>
+                    <label class="picker-field picker-field-num">G<input type="text" id="pickerG" inputmode="numeric" autocomplete="off" aria-label="Green 0-255"></label>
+                    <label class="picker-field picker-field-num">B<input type="text" id="pickerBl" inputmode="numeric" autocomplete="off" aria-label="Blue 0-255"></label>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
@@ -358,7 +407,6 @@
     {name:"Interview_captions.srt", prev:"so when did you first start editing", meta:"12 lines · 6d ago"},
     {name:"C0768_v5.srt", prev:"it's like a", meta:"51 lines · 7/10/2026"}
   ];
-  var PRESETS = ["#f03d13","#1476de","#8b5cf6","#12b886","#e8590c","#e64980","#f59f00","#495057"];
 
   var _n=0; function uid(){ return "c"+(++_n)+"_"+Math.random().toString(36).slice(2,6); }
 
@@ -526,9 +574,9 @@
     root.style.setProperty('--accent-dim','rgba('+rgb.join(',')+',0.14)');
     root.style.setProperty('--accent-sel','rgba('+rgb.join(',')+',0.30)');
     root.style.setProperty('--match-bg','rgba('+rgb.join(',')+',0.32)');
-    $('accentHex').value=hex.toUpperCase(); $('accentColor').value=hex;
+    $('accentHex').value=hex.toUpperCase();
     $('accentSwatch').style.background=hex; }
-  function setUiSize(v){ $('panel').style.zoom=(v/100); $('uiSizeVal').textContent=v+'%'; $('uiSize').value=v; }
+  function setUiSize(v){ $('panel').style.setProperty('--ui-zoom', String(v/100)); $('uiSizeVal').textContent=v+'%'; $('uiSize').value=v; }
   function seg(groupId,val){ Array.prototype.forEach.call($(groupId).querySelectorAll('.seg'),function(b){ b.classList.toggle('on',b.getAttribute('data-v')===val); }); }
 
   function openModal(id){ closeAll(null); $(id).hidden=false; }
@@ -598,16 +646,84 @@
   $('segTheme').addEventListener('click', function(e){ var b=e.target.closest('.seg'); if(b)setTheme(b.getAttribute('data-v')); });
   // cleanup show/hide
   $('segCleanup').addEventListener('click', function(e){ var b=e.target.closest('.seg'); if(!b)return; seg('segCleanup',b.getAttribute('data-v')); $('cleanup').style.display=b.getAttribute('data-v')==='on'?'':'none'; });
-  // accent
-  $('accentColor').addEventListener('input', function(){ setAccent(this.value); });
-  $('accentHex').addEventListener('change', function(){ setAccent(this.value.trim()); });
-  $('accentReset').addEventListener('click', function(){ setAccent('#f03d13'); });
+  // ===== accent color picker (hue ring + SV square + HSB sliders + hex/RGB) =====
+  // One {h,s,v} state drives every surface; each change retints the whole panel
+  // live via setAccent (the panel IS the preview). Ported from the shipping panel;
+  // pointer math is rect-based so it stays correct under the UI-size `zoom`.
+  (function(){
+    var wheel=$('pickerWheel'), sv=$('pickerSv'), svThumb=$('pickerSvThumb'), hueKnob=$('pickerHueKnob');
+    var sH=$('pickerH'), sS=$('pickerS'), sB=$('pickerB'), vH=$('pickerHVal'), vS=$('pickerSVal'), vB=$('pickerBVal');
+    var fHex=$('pickerHex'), fR=$('pickerR'), fG=$('pickerG'), fBl=$('pickerBl');
+    var WHEEL=168, MID=84, RING_OUT=82, RING_IN=66, SV=92;
+    var pick={h:12,s:0.92,v:0.94}, drag=null;
+
+    function hx2rgb(h){ var a=hexToRgb(h); return {r:a[0],g:a[1],b:a[2]}; }
+    function two(v){ v=Math.round(Math.max(0,Math.min(255,v))); return (v<16?'0':'')+v.toString(16); }
+    function rgb2hex(r,g,b){ return '#'+two(r)+two(g)+two(b); }
+    function rgb2hsv(r,g,b){ r/=255;g/=255;b/=255; var mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,h=0;
+      if(d){ if(mx===r)h=60*(((g-b)/d)%6); else if(mx===g)h=60*((b-r)/d+2); else h=60*((r-g)/d+4); }
+      return {h:(h+360)%360,s:mx?d/mx:0,v:mx}; }
+    function hsv2rgb(h,s,v){ var c=v*s,x=c*(1-Math.abs(((h/60)%2)-1)),m=v-c,r=0,g=0,b=0;
+      if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+      return {r:(r+m)*255,g:(g+m)*255,b:(b+m)*255}; }
+    function pickHex(){ var c=hsv2rgb(pick.h,pick.s,pick.v); return rgb2hex(c.r,c.g,c.b); }
+
+    function drawWheel(){ var ctx=wheel.getContext('2d'); ctx.setTransform(2,0,0,2,0,0); ctx.clearRect(0,0,WHEEL,WHEEL);
+      ctx.lineWidth=RING_OUT-RING_IN; var rMid=(RING_OUT+RING_IN)/2;
+      for(var a=0;a<360;a++){ ctx.beginPath(); ctx.strokeStyle='hsl('+a+',100%,50%)';
+        ctx.arc(MID,MID,rMid,(a-1.5)*Math.PI/180,(a+1.5)*Math.PI/180); ctx.stroke(); } }
+
+    function syncPicker(applyToo){ var hex=pickHex(), rgb=hx2rgb(hex), rMid=(RING_OUT+RING_IN)/2, rad=pick.h*Math.PI/180;
+      hueKnob.style.left=(MID+rMid*Math.cos(rad)-6)+'px'; hueKnob.style.top=(MID+rMid*Math.sin(rad)-6)+'px';
+      svThumb.style.left=(pick.s*SV-6)+'px'; svThumb.style.top=((1-pick.v)*SV-6)+'px';
+      sv.style.background='hsl('+Math.round(pick.h)+',100%,50%)';
+      sH.value=Math.round(pick.h); sS.value=Math.round(pick.s*100); sB.value=Math.round(pick.v*100);
+      vH.textContent=Math.round(pick.h)+'°'; vS.textContent=Math.round(pick.s*100); vB.textContent=Math.round(pick.v*100);
+      var s0=hsv2rgb(pick.h,0,pick.v),s1=hsv2rgb(pick.h,1,pick.v),b1=hsv2rgb(pick.h,pick.s,1);
+      sS.style.background='linear-gradient(to right,'+rgb2hex(s0.r,s0.g,s0.b)+','+rgb2hex(s1.r,s1.g,s1.b)+')';
+      sB.style.background='linear-gradient(to right,#000,'+rgb2hex(b1.r,b1.g,b1.b)+')';
+      fHex.value=hex.toUpperCase(); fR.value=rgb.r; fG.value=rgb.g; fBl.value=rgb.b;
+      if(applyToo!==false) setAccent(hex); }
+
+    function setFromHex(hex){ var c=hx2rgb(hex); pick=rgb2hsv(c.r,c.g,c.b); }
+    function normHex(v){ var m=/^#?([0-9a-fA-F]{6})$/.exec((v||'').trim()); return m?'#'+m[1].toLowerCase():null; }
+
+    function open(){ setFromHex(($('accentHex').value)||'#f03d13'); syncPicker(false); $('colorPicker').hidden=false; $('accentSwatch').setAttribute('aria-expanded','true'); }
+    function close(){ $('colorPicker').hidden=true; $('accentSwatch').setAttribute('aria-expanded','false'); }
+    $('accentSwatch').addEventListener('click', function(){ $('colorPicker').hidden?open():close(); });
+
+    // rect-based element-local coords — correct at any UI-size `zoom` (rect.width
+    // is post-zoom visual px, `size` is the layout px, so their ratio is the zoom).
+    function localPt(e,el,size){ var r=el.getBoundingClientRect(), sc=r.width/size; return {x:(e.clientX-r.left)/sc, y:(e.clientY-r.top)/sc}; }
+    function setHue(p){ pick.h=(Math.atan2(p.y-MID,p.x-MID)*180/Math.PI+360)%360; syncPicker(); }
+    function setSv(p){ pick.s=Math.max(0,Math.min(1,p.x/SV)); pick.v=Math.max(0,Math.min(1,1-p.y/SV)); syncPicker(); }
+
+    wheel.addEventListener('mousedown', function(e){ var p=localPt(e,wheel,WHEEL), d=Math.sqrt(Math.pow(p.x-MID,2)+Math.pow(p.y-MID,2));
+      if(d<RING_IN-8||d>RING_OUT+8)return; drag='hue'; setHue(p); e.preventDefault(); });
+    sv.addEventListener('mousedown', function(e){ drag='sv'; setSv(localPt(e,sv,SV)); e.preventDefault(); });
+    document.addEventListener('mousemove', function(e){ if(drag==='hue')setHue(localPt(e,wheel,WHEEL)); else if(drag==='sv')setSv(localPt(e,sv,SV)); });
+    document.addEventListener('mouseup', function(){ drag=null; });
+
+    function bindSlider(input,set){ input.addEventListener('input', function(){ set(parseFloat(input.value)); syncPicker(); }); }
+    bindSlider(sH,function(v){ pick.h=Math.max(0,Math.min(360,v))%360; });
+    bindSlider(sS,function(v){ pick.s=Math.max(0,Math.min(100,v))/100; });
+    bindSlider(sB,function(v){ pick.v=Math.max(0,Math.min(100,v))/100; });
+
+    fHex.addEventListener('change', function(){ var h=normHex(fHex.value); if(h){ setFromHex(h); syncPicker(); } else syncPicker(false); });
+    function bindRgb(input,ch){ input.addEventListener('change', function(){ var n=parseInt(input.value,10); if(isNaN(n)){ syncPicker(false); return; }
+      var rgb=hx2rgb(pickHex()); rgb[ch]=Math.max(0,Math.min(255,n)); setFromHex(rgb2hex(rgb.r,rgb.g,rgb.b)); syncPicker(); }); }
+    bindRgb(fR,'r'); bindRgb(fG,'g'); bindRgb(fBl,'b');
+
+    // collapsed-row hex field
+    $('accentHex').addEventListener('change', function(){ var h=normHex(this.value); if(h){ setAccent(h); setFromHex(h); syncPicker(false); } else this.value=($('accentHex').getAttribute('value')||'#F03D13'); });
+    $('accentHex').addEventListener('click', function(e){ e.stopPropagation(); });
+    $('accentReset').addEventListener('click', function(){ setAccent('#f03d13'); setFromHex('#f03d13'); syncPicker(false); });
+
+    drawWheel();
+  })();
   // ui size
   $('uiSize').addEventListener('input', function(){ setUiSize(Number(this.value)); });
   $('uiSizeReset').addEventListener('click', function(){ setUiSize(100); });
-  // presets
-  (function(){ var h=''; PRESETS.forEach(function(c){ h+='<button class="sw" data-c="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }); $('accentPresets').innerHTML=h;
-    $('accentPresets').addEventListener('click', function(e){ var b=e.target.closest('.sw'); if(b)setAccent(b.getAttribute('data-c')); }); })();
 
   // modal close (button + backdrop)
   Array.prototype.forEach.call(document.querySelectorAll('[data-close]'),function(b){ b.addEventListener('click',function(){ closeModal(this.getAttribute('data-close')==='settings'?'settingsModal':'aboutModal'); }); });

@@ -21,16 +21,13 @@
   html,body{width:100%;height:100%}
   body{
     font-family:var(--font);font-size:13px;color:var(--text);
-    background:transparent;
-    display:flex;align-items:center;justify-content:center;
-    padding:14px;
-  }
-  /* ---- panel shell ---- */
-  .panel{
-    width:100%;max-width:452px;height:588px;
     background:var(--bg);
-    border:1px solid var(--border);border-radius:var(--r-lg);
-    box-shadow:0 24px 60px rgba(0,0,0,.5);
+    overflow:hidden;                 /* the panel fills the frame; only the list scrolls */
+  }
+  /* ---- panel shell — fills the embed frame edge-to-edge, like a docked panel ---- */
+  .panel{
+    width:100%;height:100%;
+    background:var(--bg);
     display:flex;flex-direction:column;overflow:hidden;position:relative;
   }
   /* ---- toolbar ---- */

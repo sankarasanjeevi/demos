@@ -5,155 +5,173 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CutCap — live demo</title>
 <style>
-  /* ---- CutCap theme tokens — copied 1:1 from the shipping panel ---- */
+  /* ===== CutCap theme tokens — copied 1:1 from the shipping panel ===== */
   :root{
     --bg:#1e1e1e; --surface:#27272a; --surface-hi:#313136;
     --border:#3b3b41; --border-hi:#4b4b53;
     --text:#efefef; --text-dim:#ababab; --text-muted:#7a7a7a; --text-time:#c1c1c1;
     --accent:#f03d13; --accent-hi:#d73711; --accent-dim:rgba(240,61,19,.14); --accent-sel:rgba(240,61,19,.30);
     --danger:#ed1515; --flag:#ed7e15; --success:#2eaf64;
-    --r-sm:4px; --r-md:4px; --r-lg:8px;
+    --match-bg:rgba(240,61,19,.32); --match-text:#ffd6cc;
+    --scrim:rgba(0,0,0,.55); --shadow-pop:0 8px 24px rgba(0,0,0,.45); --shadow-modal:0 12px 40px rgba(0,0,0,.5);
+    --r:4px; --r-lg:8px;
     --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     --mono:'SFMono-Regular',ui-monospace,'Menlo','Consolas',monospace;
     color-scheme:dark;
   }
+  :root[data-theme="light"]{
+    --bg:#f2f2f4; --surface:#fbfbfc; --surface-hi:#ebebee;
+    --border:#d7d7dd; --border-hi:#c1c1c9;
+    --text:#1d1d1f; --text-dim:#5c5c64; --text-muted:#8e8e96; --text-time:#46464d;
+    --accent-dim:rgba(240,61,19,.10); --accent-sel:rgba(240,61,19,.20);
+    --danger:#d31212; --flag:#c96a08; --success:#1f8a4d;
+    --match-bg:rgba(240,61,19,.22); --match-text:#661a05;
+    --scrim:rgba(0,0,0,.35); --shadow-pop:0 8px 24px rgba(0,0,0,.16); --shadow-modal:0 12px 40px rgba(0,0,0,.2);
+    color-scheme:light;
+  }
   *{margin:0;padding:0;box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{width:100%;height:100%}
-  body{
-    font-family:var(--font);font-size:13px;color:var(--text);
-    background:var(--bg);
-    overflow:hidden;                 /* the panel fills the frame; only the list scrolls */
-  }
-  /* ---- panel shell — fills the embed frame edge-to-edge, like a docked panel ---- */
-  .panel{
-    width:100%;height:100%;
-    background:var(--bg);
-    display:flex;flex-direction:column;overflow:hidden;position:relative;
-  }
-  /* ---- toolbar ---- */
-  .toolbar{
-    display:flex;align-items:center;gap:8px;
-    padding:10px 12px;border-bottom:1px solid var(--border);
-    background:var(--surface);
-  }
-  .brand{display:flex;align-items:center;gap:7px;margin-right:2px}
-  .brand .dot{width:8px;height:8px;border-radius:2px;background:var(--accent)}
-  .brand .wm{font-weight:700;letter-spacing:-.01em;font-size:13.5px}
+  body{ font-family:var(--font);font-size:13px;color:var(--text);background:var(--bg);overflow:hidden; }
+  /* ===== panel shell — fills the embed frame, like a docked panel ===== */
+  .panel{ width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;position:relative;zoom:1; }
+  .cutcap-logo{ width:20px;height:auto;color:var(--accent); }
+  /* ===== toolbar ===== */
+  .toolbar{ display:flex;align-items:center;gap:6px;padding:9px 10px;border-bottom:1px solid var(--border);background:var(--surface); }
+  .tzone{ display:flex;align-items:center;gap:4px; }
   .spacer{flex:1}
-  .iconbtn{
-    width:30px;height:30px;display:grid;place-items:center;
-    background:transparent;border:1px solid transparent;border-radius:var(--r-sm);
-    color:var(--text-dim);cursor:pointer;transition:all .12s;
-  }
+  .brand{ display:flex;align-items:center;gap:6px;padding:0 4px;margin-right:2px; }
+  .brand .wm{font-weight:700;letter-spacing:-.01em;font-size:13px}
+  .iconbtn{ width:30px;height:30px;display:grid;place-items:center;background:transparent;border:1px solid transparent;border-radius:var(--r);color:var(--text-dim);cursor:pointer;transition:all .12s; }
   .iconbtn:hover{background:var(--surface-hi);color:var(--text);border-color:var(--border)}
-  .iconbtn:disabled{opacity:.32;cursor:not-allowed}
+  .iconbtn:disabled{opacity:.3;cursor:not-allowed}
   .iconbtn:disabled:hover{background:transparent;color:var(--text-dim);border-color:transparent}
   .iconbtn svg{width:16px;height:16px}
-  .btn{
-    display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;
-    border-radius:var(--r-sm);border:1px solid var(--border-hi);
-    background:var(--surface-hi);color:var(--text);font-family:var(--font);
-    font-size:12.5px;font-weight:600;cursor:pointer;transition:all .12s;
-  }
-  .btn svg{width:15px;height:15px}
-  .btn:hover{background:#3a3a40}
-  .btn.accent{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn.accent:hover{background:var(--accent-hi)}
-  .btn:disabled{opacity:.34;cursor:not-allowed}
-  .btn.accent:disabled:hover{background:var(--accent)}
-  .divider{width:1px;height:18px;background:var(--border);margin:0 2px}
-  /* ---- list ---- */
-  .list{flex:1;overflow-y:auto;padding:8px 8px 14px}
+  .iconbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .iconbtn.primary:hover{background:var(--accent-hi);border-color:var(--accent-hi)}
+  .iconbtn.primary:disabled{opacity:.4}
+  .iconbtn.primary:disabled:hover{background:var(--accent)}
+  .iconbtn.on{background:var(--accent-dim);color:var(--accent);border-color:transparent}
+  .divider{width:1px;height:18px;background:var(--border);margin:0 3px}
+  /* ===== find bar ===== */
+  .find-bar{ border-bottom:1px solid var(--border);background:var(--surface);padding:7px 10px;display:flex;flex-direction:column;gap:6px; }
+  .find-row{display:flex;align-items:center;gap:6px}
+  .find-field{ flex:1;height:28px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:0 9px;font-family:var(--font);font-size:12.5px;outline:none; }
+  .find-field:focus{border-color:var(--accent)}
+  .find-count{font-family:var(--mono);font-size:11px;color:var(--text-dim);min-width:34px;text-align:center}
+  .find-nav,.find-toggle,.find-btn,.find-close{ height:28px;background:var(--surface-hi);border:1px solid var(--border);border-radius:var(--r);color:var(--text);cursor:pointer;font-size:12px;font-family:var(--font); }
+  .find-nav{width:26px}.find-close{width:26px;background:transparent;border-color:transparent;color:var(--text-dim);font-size:16px}
+  .find-toggle{width:28px;font-weight:600}.find-toggle.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .find-btn{padding:0 9px;font-weight:600}
+  .find-nav:hover,.find-btn:hover,.find-close:hover{background:var(--border)}
+  /* ===== list ===== */
+  .list{flex:1;overflow-y:auto;padding:8px 8px 12px}
   .list::-webkit-scrollbar{width:9px}
   .list::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;border:2px solid var(--bg)}
-  .list::-webkit-scrollbar-thumb:hover{background:var(--border-hi)}
-  .cap{
-    position:relative;display:flex;gap:10px;padding:9px 10px 9px 12px;
-    border-radius:var(--r-md);border:1px solid transparent;cursor:default;
-    transition:background .1s,border-color .1s;
-  }
+  .cap{ position:relative;padding:8px 10px 8px 13px;border-radius:var(--r);border:1px solid transparent;transition:background .1s,border-color .1s; }
   .cap:hover{background:var(--surface)}
   .cap.sel{background:var(--surface-hi);border-color:var(--border-hi)}
-  .cap .bar{
-    position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;
-    background:transparent;transition:background .12s;
-  }
+  .cap .bar{position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:transparent}
   .cap.flagged .bar{background:var(--flag)}
-  .cap .idx{
-    font-family:var(--mono);font-size:10px;color:var(--text-muted);
-    padding-top:3px;min-width:16px;text-align:right;user-select:none;
-  }
-  .cap .body{flex:1;min-width:0}
-  .cap .tc{
-    font-family:var(--mono);font-size:10px;color:var(--text-time);
-    margin-bottom:4px;letter-spacing:.02em;
-  }
-  .cap .tc .arr{color:var(--text-muted);margin:0 5px}
-  .cap .txt{
-    font-size:13px;line-height:1.6;color:var(--text);word-break:break-word;
-  }
-  /* word spans + "/" dividers — the real split UX */
-  .word{display:inline;cursor:text}
-  .word[contenteditable="true"]{
-    outline:1px solid var(--accent);background:var(--accent-dim);
-    padding:1px 3px;margin:0 -3px;border-radius:var(--r-sm);cursor:text;
-  }
-  /* Split handles stay hidden until you hover/select a line, so captions read
-     clean at rest; opacity (not display) keeps spacing stable — no layout shift. */
-  .word-divider{
-    display:inline-block;padding:0 3px;color:var(--text-muted);cursor:pointer;
-    user-select:none;font-size:.85em;border-radius:2px;opacity:0;
-    transition:opacity .12s,color .12s,background .12s;
-  }
-  .cap:hover .word-divider,.cap.sel .word-divider{opacity:1}
-  .word-divider:hover{color:var(--accent);background:var(--accent-dim);opacity:1}
-  .cap .row-actions{
-    display:flex;gap:2px;align-self:flex-start;opacity:0;transition:opacity .1s;
-    padding-top:1px;
-  }
+  .chead{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+  .idx{font-family:var(--mono);font-size:10px;color:var(--text-muted);user-select:none;min-width:14px}
+  .tc{font-family:var(--mono);font-size:10px;color:var(--text-time);letter-spacing:.02em;flex:1}
+  .tc .arr{color:var(--text-muted);margin:0 4px}
+  .row-actions{display:flex;gap:2px;opacity:0;transition:opacity .1s}
   .cap:hover .row-actions,.cap.sel .row-actions{opacity:1}
-  .mini{
-    width:24px;height:24px;display:grid;place-items:center;border-radius:var(--r-sm);
-    background:transparent;border:none;color:var(--text-muted);cursor:pointer;transition:all .1s;
-  }
-  .mini svg{width:14px;height:14px}
+  .mini{width:22px;height:22px;display:grid;place-items:center;border-radius:var(--r);background:transparent;border:none;color:var(--text-muted);cursor:pointer;transition:all .1s}
+  .mini svg{width:13px;height:13px}
   .mini:hover{background:var(--surface-hi);color:var(--text)}
   .mini.flag:hover{color:var(--flag)}
   .mini.del:hover{color:var(--danger)}
   .cap.flagged .mini.flag{color:var(--flag)}
-  /* ---- empty state ---- */
-  .empty{
-    height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:14px;color:var(--text-dim);text-align:center;padding:30px;
-  }
-  .empty svg{width:38px;height:38px;color:var(--text-muted)}
-  .empty p{font-size:13px;max-width:230px;line-height:1.5}
-  /* ---- status bar ---- */
-  .status{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:8px 14px;border-top:1px solid var(--border);
-    font-size:11px;color:var(--text-dim);background:var(--surface);
-  }
-  .status .hint{color:var(--text-muted)}
-  .status .demo-tag{
-    font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--accent);border:1px solid var(--accent);opacity:.8;
-    padding:2px 6px;border-radius:999px;
-  }
-  /* ---- toast ---- */
-  .toast-wrap{
-    position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
-    display:flex;flex-direction:column;gap:8px;align-items:center;
-    pointer-events:none;z-index:50;
-  }
-  .toast{
-    display:flex;align-items:center;gap:9px;
-    background:var(--surface-hi);border:1px solid var(--border-hi);
-    padding:9px 14px;border-radius:999px;font-size:12.5px;color:var(--text);
-    box-shadow:0 10px 30px rgba(0,0,0,.5);
-    opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;
-    white-space:nowrap;
-  }
+  .txt{font-size:13px;line-height:1.55;color:var(--text);word-break:break-word}
+  .word{display:inline;cursor:text}
+  .word[contenteditable="true"]{outline:1px solid var(--accent);background:var(--accent-dim);padding:1px 3px;margin:0 -3px;border-radius:var(--r);cursor:text}
+  .word-divider{display:inline-block;padding:0 3px;color:var(--text-muted);cursor:pointer;user-select:none;font-size:.85em;border-radius:2px;opacity:0;transition:opacity .12s,color .12s,background .12s}
+  .cap:hover .word-divider,.cap.sel .word-divider{opacity:1}
+  .word-divider:hover{color:var(--accent);background:var(--accent-dim);opacity:1}
+  mark.match{background:var(--match-bg);color:var(--match-text);border-radius:2px}
+  mark.match.current{background:var(--accent);color:#fff}
+  .note{margin-top:5px;font-size:12px;color:var(--flag);background:var(--flag-dim,rgba(237,126,21,.12));border:1px solid transparent;border-radius:var(--r);padding:4px 7px;outline:none}
+  .note:empty:before{content:attr(data-ph);color:var(--text-muted)}
+  .note:focus{border-color:var(--flag)}
+  /* ===== empty state ===== */
+  .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-dim);text-align:center;padding:24px}
+  .empty .cutcap-logo{width:52px;color:var(--text-muted);opacity:.5}
+  .empty p{font-size:12.5px;max-width:250px;line-height:1.5}
+  .empty .sub{color:var(--text-muted);font-size:11.5px}
+  /* ===== cleanup bar ===== */
+  .cleanup{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);background:var(--surface)}
+  .cleanup-btn{flex:1;height:28px;background:var(--surface-hi);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .12s}
+  .cleanup-btn:hover{background:var(--border);border-color:var(--border-hi)}
+  .cleanup-btn:disabled{opacity:.35;cursor:not-allowed}
+  .cleanup-btn:disabled:hover{background:var(--surface-hi);border-color:var(--border)}
+  /* ===== status ===== */
+  .status{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim);background:var(--surface)}
+  .status .hint{color:var(--text-muted);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
+  .status .demo-tag{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);opacity:.8;padding:2px 6px;border-radius:999px}
+  /* ===== overlays: menu, history ===== */
+  .overlay{position:absolute;background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--r-lg);box-shadow:var(--shadow-pop);z-index:40}
+  .app-menu{top:46px;left:10px;min-width:180px;padding:6px}
+  .menu-brand{display:flex;align-items:center;gap:8px;padding:8px 10px 6px}
+  .menu-brand .wm{font-weight:700}
+  .menu-sep{height:1px;background:var(--border);margin:4px 0}
+  .menu-item{display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--text);font-family:var(--font);font-size:12.5px;padding:8px 10px;border-radius:var(--r);cursor:pointer}
+  .menu-item:hover{background:var(--surface-hi)}
+  .history{top:46px;left:10px;width:290px;max-height:calc(100% - 100px);display:flex;flex-direction:column;overflow:hidden}
+  .history-title{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);padding:11px 13px 7px}
+  .history-list{overflow-y:auto;padding:0 7px 8px}
+  .hitem{padding:9px 10px;border-radius:var(--r);cursor:pointer;transition:background .1s}
+  .hitem:hover{background:var(--surface-hi)}
+  .hitem .hname{font-weight:700;font-size:12.5px;color:var(--text)}
+  .hitem .hprev{font-size:11.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0}
+  .hitem .hmeta{font-size:10.5px;color:var(--text-muted)}
+  /* ===== modals ===== */
+  .modal-overlay{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
+  .modal{width:100%;max-width:400px;max-height:100%;background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--r-lg);box-shadow:var(--shadow-modal);display:flex;flex-direction:column;overflow:hidden}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid var(--border)}
+  .modal-header h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .modal-close{width:26px;height:26px;background:transparent;border:none;color:var(--text-dim);font-size:19px;cursor:pointer;border-radius:var(--r)}
+  .modal-close:hover{background:var(--surface-hi);color:var(--text)}
+  .modal-body{padding:15px;overflow-y:auto;font-size:12.5px;line-height:1.55;color:var(--text-dim)}
+  .modal-body h3{color:var(--text);font-size:12.5px;margin:14px 0 5px}
+  .modal-body h3:first-child{margin-top:0}
+  .modal-body ul{margin:0 0 0 16px}
+  .modal-body li{margin:3px 0}
+  .modal-body b{color:var(--text)}
+  .modal-body code{font-family:var(--mono);font-size:11px;background:var(--surface-hi);padding:1px 4px;border-radius:3px;color:var(--text)}
+  .about-lead{color:var(--text);font-size:13px;margin-bottom:6px}
+  .about-foot{margin-top:14px;color:var(--text-muted);font-size:11px}
+  /* settings */
+  .settings-split{display:flex;min-height:0;flex:1}
+  .settings-nav{display:flex;flex-direction:column;gap:2px;padding:12px 8px;border-right:1px solid var(--border);min-width:104px}
+  .snav{text-align:left;background:transparent;border:none;color:var(--text-dim);font-family:var(--font);font-size:12.5px;padding:7px 10px;border-radius:var(--r);cursor:pointer}
+  .snav:hover{background:var(--surface-hi);color:var(--text)}
+  .snav.on{background:var(--accent-dim);color:var(--accent);font-weight:600}
+  .settings-panes{flex:1;padding:14px;overflow-y:auto}
+  .spane{display:none}.spane.on{display:block}
+  .srow{padding:10px 0;border-bottom:1px solid var(--border)}
+  .srow:last-child{border-bottom:none}
+  .slabel{font-size:12.5px;color:var(--text);font-weight:600;margin-bottom:3px}
+  .sdesc{font-size:11.5px;color:var(--text-muted);line-height:1.5;margin-bottom:8px}
+  .sselect{width:100%;height:30px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:0 8px;font-family:var(--font);font-size:12.5px}
+  .uisize{display:flex;align-items:center;gap:10px}
+  .uisize input[type=range]{flex:1;accent-color:var(--accent)}
+  .uisize .val{font-family:var(--mono);font-size:12px;color:var(--text);min-width:42px}
+  .sbtn{height:28px;padding:0 10px;background:var(--surface-hi);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:11.5px;cursor:pointer;font-family:var(--font)}
+  .sbtn:hover{background:var(--border)}
+  .segmented{display:inline-flex;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+  .seg{padding:6px 16px;background:transparent;border:none;color:var(--text-dim);font-family:var(--font);font-size:12.5px;cursor:pointer}
+  .seg.on{background:var(--accent);color:#fff}
+  .accent-row{display:flex;align-items:center;gap:8px}
+  .swatch{width:30px;height:30px;border-radius:var(--r);border:1px solid var(--border-hi);background:var(--accent);cursor:pointer}
+  .hexin{width:98px;height:30px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:0 8px;font-family:var(--mono);font-size:12px;text-transform:uppercase}
+  .swatches{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .sw{width:24px;height:24px;border-radius:var(--r);border:1px solid var(--border-hi);cursor:pointer}
+  /* ===== toast — ONE at a time, same spot ===== */
+  .toast-wrap{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);pointer-events:none;z-index:80}
+  .toast{display:flex;align-items:center;gap:9px;background:var(--surface-hi);border:1px solid var(--border-hi);padding:9px 14px;border-radius:999px;font-size:12.5px;color:var(--text);box-shadow:var(--shadow-pop);opacity:0;transform:translateY(8px);transition:opacity .18s,transform .18s;white-space:nowrap}
   .toast.show{opacity:1;transform:translateY(0)}
   .toast .tdot{width:8px;height:8px;border-radius:50%;background:var(--text-dim);flex:none}
   .toast.ok .tdot{background:var(--success)}
@@ -162,34 +180,156 @@
 </head>
 <body>
   <div class="panel" id="panel">
+    <!-- toolbar -->
     <div class="toolbar">
-      <div class="brand"><span class="dot"></span><span class="wm">CutCap</span></div>
-      <button class="iconbtn" id="btnImport" title="Import captions" aria-label="Import captions">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-      </button>
+      <div class="tzone">
+        <button class="iconbtn" id="btnMenu" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>
+        <span class="brand"><svg class="cutcap-logo" viewBox="0 0 1249.94 610.87" aria-hidden="true"><path d="M168.74,549.45L0,610.87v-155.93l168.74-61.42v155.93ZM168.74,61.42L0,0v155.93l168.74,61.42V61.42ZM1081.2,61.42v155.93l168.74-61.42V0l-168.74,61.42ZM1081.2,549.45l168.74,61.42v-155.93l-168.74-61.42v155.93ZM712.68,195.55l214.2,77.96,91.82-33.42V84.16l-306.02,111.38ZM536.69,195.34L231.24,84.16v155.93l91.24,33.21,214.2-77.96ZM993.12,361.72l-336.9-122.62v155.68l362.48,131.93v-155.93l-25.58-9.31v.25ZM410.54,305.35l.23.08-179.53,65.34v155.93l362.48-131.93v-156.1l-183.19,66.67Z" fill="currentColor"/></svg><span class="wm">CutCap</span></span>
+        <button class="iconbtn primary" id="btnImport" title="Import captions (.srt, .vtt, .csv)" aria-label="Import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
+        <button class="iconbtn" id="btnHistory" title="History" aria-label="History"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg></button>
+        <button class="iconbtn" id="btnFind" title="Find & Replace" aria-label="Find and Replace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+      </div>
       <span class="spacer"></span>
-      <button class="iconbtn" id="btnUndo" title="Undo" aria-label="Undo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
-      </button>
-      <button class="iconbtn" id="btnRedo" title="Redo" aria-label="Redo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg>
-      </button>
-      <span class="divider"></span>
-      <button class="iconbtn" id="btnExport" title="Export .srt" aria-label="Export SRT">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg>
-      </button>
-      <button class="btn accent" id="btnPush" title="Push captions to the timeline">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-        Push
-      </button>
+      <div class="tzone">
+        <button class="iconbtn" id="btnUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
+        <button class="iconbtn" id="btnRedo" title="Redo (Ctrl+Y)" aria-label="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg></button>
+        <button class="iconbtn" id="btnSync" title="Sync: OFF" aria-label="Sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
+        <span class="divider"></span>
+        <button class="iconbtn" id="btnExport" title="Export SRT" aria-label="Export SRT"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg></button>
+        <button class="iconbtn primary" id="btnPush" title="Push to Premiere" aria-label="Push to Premiere"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></button>
+      </div>
+    </div>
+
+    <!-- find bar -->
+    <div class="find-bar" id="findBar" hidden>
+      <div class="find-row">
+        <input class="find-field" id="findInput" type="text" placeholder="Find" autocomplete="off" spellcheck="false">
+        <span class="find-count" id="findCount">0/0</span>
+        <button class="find-nav" id="findPrev" title="Previous (Shift+Enter)">&lsaquo;</button>
+        <button class="find-nav" id="findNext" title="Next (Enter)">&rsaquo;</button>
+        <button class="find-close" id="findClose" title="Close (Esc)">&times;</button>
+      </div>
+      <div class="find-row">
+        <button class="find-toggle" id="findCase" title="Match case">Aa</button>
+        <button class="find-toggle" id="findWord" title="Whole word">W</button>
+        <input class="find-field" id="replaceInput" type="text" placeholder="Replace with" autocomplete="off" spellcheck="false">
+        <button class="find-btn" id="replaceAll" title="Replace all">All</button>
+      </div>
     </div>
 
     <div class="list" id="list"></div>
 
+    <div class="cleanup" id="cleanup">
+      <button class="cleanup-btn" data-clean="gaps" title="Snap each caption's end time to the next caption's start">Remove gaps</button>
+      <button class="cleanup-btn" data-clean="breaks" title="Join multi-line captions into a single line">Remove line breaks</button>
+      <button class="cleanup-btn" data-clean="punct" title="Strip punctuation from every caption">Remove punctuation</button>
+    </div>
+
     <div class="status">
       <span id="count">0 captions</span>
-      <span class="hint" id="hint">Click a / to split · double-click a word to edit</span>
+      <span class="hint" id="hint">Hover a line, click a / to split · double-click a word to edit</span>
       <span class="demo-tag">Live demo</span>
+    </div>
+
+    <!-- app menu -->
+    <div class="overlay app-menu" id="appMenu" hidden>
+      <div class="menu-brand"><svg class="cutcap-logo" viewBox="0 0 1249.94 610.87" aria-hidden="true"><path d="M168.74,549.45L0,610.87v-155.93l168.74-61.42v155.93ZM168.74,61.42L0,0v155.93l168.74,61.42V61.42ZM1081.2,61.42v155.93l168.74-61.42V0l-168.74,61.42ZM1081.2,549.45l168.74,61.42v-155.93l-168.74-61.42v155.93ZM712.68,195.55l214.2,77.96,91.82-33.42V84.16l-306.02,111.38ZM536.69,195.34L231.24,84.16v155.93l91.24,33.21,214.2-77.96ZM993.12,361.72l-336.9-122.62v155.68l362.48,131.93v-155.93l-25.58-9.31v.25ZM410.54,305.35l.23.08-179.53,65.34v155.93l362.48-131.93v-156.1l-183.19,66.67Z" fill="currentColor"/></svg><span class="wm">CutCap</span></div>
+      <div class="menu-sep"></div>
+      <button class="menu-item" data-menu="settings">Settings</button>
+      <button class="menu-item" data-menu="about">About CutCap</button>
+    </div>
+
+    <!-- history -->
+    <div class="overlay history" id="historyPanel" hidden>
+      <div class="history-title">Recent edits</div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+
+    <!-- settings -->
+    <div class="modal-overlay" id="settingsModal" hidden>
+      <div class="modal">
+        <div class="modal-header"><h2>Settings</h2><button class="modal-close" data-close="settings">&times;</button></div>
+        <div class="settings-split">
+          <nav class="settings-nav">
+            <button class="snav on" data-pane="general">General</button>
+            <button class="snav" data-pane="ui">UI</button>
+            <button class="snav" data-pane="appear">Appearance</button>
+          </nav>
+          <div class="settings-panes">
+            <section class="spane on" data-pane="general">
+              <div class="srow">
+                <div class="slabel">On launch</div>
+                <div class="sdesc">What happens to your previous session when the panel opens.</div>
+                <select class="sselect"><option>Reopen previous</option><option>Start fresh</option><option>Decide on launch</option></select>
+              </div>
+              <div class="srow">
+                <div class="slabel">Caption save location</div>
+                <div class="sdesc">Where pushed caption SRTs are saved. Leave blank to save in a “CutCap” folder beside your project file.</div>
+                <input class="hexin" style="width:100%;font-family:var(--font);text-transform:none" placeholder="e.g. D:\Captions">
+              </div>
+            </section>
+            <section class="spane" data-pane="ui">
+              <div class="srow">
+                <div class="slabel">UI size</div>
+                <div class="sdesc">Scale the whole panel — buttons, text, and captions — from 100% up to 200%.</div>
+                <div class="uisize"><input type="range" id="uiSize" min="100" max="200" value="100" step="5"><span class="val" id="uiSizeVal">100%</span><button class="sbtn" id="uiSizeReset">Reset</button></div>
+              </div>
+              <div class="srow">
+                <div class="slabel">Cleanup bar</div>
+                <div class="sdesc">Show the bar under the caption list with Remove gaps, Remove line breaks, and Remove punctuation.</div>
+                <div class="segmented" id="segCleanup"><button class="seg on" data-v="on">Show</button><button class="seg" data-v="off">Hide</button></div>
+              </div>
+            </section>
+            <section class="spane" data-pane="appear">
+              <div class="srow">
+                <div class="slabel">Theme</div>
+                <div class="sdesc">Dark matches Premiere and is the default. Light is there if you prefer it.</div>
+                <div class="segmented" id="segTheme"><button class="seg on" data-v="dark">Dark</button><button class="seg" data-v="light">Light</button></div>
+              </div>
+              <div class="srow">
+                <div class="slabel">Accent color</div>
+                <div class="sdesc">The highlight color for buttons, selections and toggles. Click the swatch or pick a preset.</div>
+                <div class="accent-row">
+                  <label class="swatch" id="accentSwatch"><input type="color" id="accentColor" value="#f03d13" style="opacity:0;width:0;height:0;position:absolute"></label>
+                  <input class="hexin" id="accentHex" value="#F03D13" spellcheck="false">
+                  <button class="sbtn" id="accentReset">Reset</button>
+                </div>
+                <div class="swatches" id="accentPresets"></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- about -->
+    <div class="modal-overlay" id="aboutModal" hidden>
+      <div class="modal">
+        <div class="modal-header"><h2><svg class="cutcap-logo" viewBox="0 0 1249.94 610.87" aria-hidden="true"><path d="M168.74,549.45L0,610.87v-155.93l168.74-61.42v155.93ZM168.74,61.42L0,0v155.93l168.74,61.42V61.42ZM1081.2,61.42v155.93l168.74-61.42V0l-168.74,61.42ZM1081.2,549.45l168.74,61.42v-155.93l-168.74-61.42v155.93ZM712.68,195.55l214.2,77.96,91.82-33.42V84.16l-306.02,111.38ZM536.69,195.34L231.24,84.16v155.93l91.24,33.21,214.2-77.96ZM993.12,361.72l-336.9-122.62v155.68l362.48,131.93v-155.93l-25.58-9.31v.25ZM410.54,305.35l.23.08-179.53,65.34v155.93l362.48-131.93v-156.1l-183.19,66.67Z" fill="currentColor"/></svg>CutCap</h2><button class="modal-close" data-close="about">&times;</button></div>
+        <div class="modal-body">
+          <p class="about-lead">A caption editor for Premiere Pro. Import an SRT, refine the cut and the wording right in the panel, then push the result back to your timeline.</p>
+          <h3>Editing captions</h3>
+          <ul>
+            <li><b>Double-click a word</b> to edit just that word.</li>
+            <li><b>Click a “/” between words</b> to split the line there; the <b>trailing “/”</b> merges with the next line.</li>
+            <li><b>Cleanup bar</b> — Remove gaps, Remove line breaks, Remove punctuation, all undoable.</li>
+          </ul>
+          <h3>Review &amp; search</h3>
+          <ul>
+            <li><b>Flag for review</b> — mark a line and jot a note.</li>
+            <li><b>Find &amp; Replace</b> — matches highlight as you type; <b>Aa</b> case, <b>W</b> whole-word, Replace all.</li>
+          </ul>
+          <h3>Playback &amp; sync</h3>
+          <ul><li><b>Sync</b> highlights the caption under the playhead as your Premiere timeline plays.</li></ul>
+          <h3>History &amp; output</h3>
+          <ul>
+            <li><b>History</b> reopens your recent edits — work is auto-saved.</li>
+            <li><b>Export SRT</b> saves to disk; <b>Push to Premiere</b> places the captions on a new caption track.</li>
+            <li>Panel size lives in <b>Settings → UI</b>; the dark/light theme and accent in <b>Settings → Appearance</b>.</li>
+          </ul>
+          <p class="about-foot">CutCap — CEP extension for Premiere Pro 2023–2026.</p>
+        </div>
+      </div>
     </div>
 
     <div class="toast-wrap" id="toasts"></div>
@@ -198,248 +338,296 @@
 <script>
 (function(){
   "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var root = document.documentElement;
 
-  /* ---------- sample data (doubles as a mini tutorial) ---------- */
+  /* ---------- data ---------- */
   function seed(){
     return [
-      {t:"Welcome to CutCap.", a:0,      b:2400},
+      {t:"Welcome to CutCap.", a:0, b:2400},
       {t:"Click the slash between words to split a caption.", a:2400, b:6000},
       {t:"Double-click a word to fix it.", a:6000, b:8600},
       {t:"Flag a line to revisit it later.", a:8600, b:11000},
       {t:"Undo and redo have your back.", a:11000, b:13200},
       {t:"Then push them straight back to your timeline.", a:13200, b:15600}
-    ].map(function(c){ return {id:uid(), text:c.t, start:c.a, end:c.b, flagged:false}; });
+    ].map(function(c){ return {id:uid(), text:c.t, start:c.a, end:c.b, flagged:false, note:""}; });
   }
+  var HISTORY = [
+    {name:"Reels 1_v4.srt", prev:"were saying it's close", meta:"1 line · 2d ago"},
+    {name:"Cutcap Demo RAW.srt", prev:"hey all this is a quick demo of what cutcap does", meta:"53 lines · 5d ago"},
+    {name:"Interview_captions.srt", prev:"so when did you first start editing", meta:"12 lines · 6d ago"},
+    {name:"C0768_v5.srt", prev:"it's like a", meta:"51 lines · 7/10/2026"}
+  ];
+  var PRESETS = ["#f03d13","#1476de","#8b5cf6","#12b886","#e8590c","#e64980","#f59f00","#495057"];
 
   var _n=0; function uid(){ return "c"+(++_n)+"_"+Math.random().toString(36).slice(2,6); }
 
-  var caps = seed();
-  var selId = null;
-  var dirty = false;
-  var editing = null;                 // {capId, wIndex} while a word is being edited
-  var undoStack = [], redoStack = [];
+  var caps = seed(), selId=null, dirty=false, editing=null, syncOn=false;
+  var undoStack=[], redoStack=[];
+  var findQuery="", findCase=false, findWord=false, curMatch=0, matchTotal=0;
 
-  var listEl   = document.getElementById('list');
-  var countEl  = document.getElementById('count');
-  var hintEl   = document.getElementById('hint');
-  var toastsEl = document.getElementById('toasts');
-  var btnUndo  = document.getElementById('btnUndo');
-  var btnRedo  = document.getElementById('btnRedo');
-  var btnPush  = document.getElementById('btnPush');
-  var btnExport= document.getElementById('btnExport');
+  var listEl=$('list'), hintEl=$('hint'), toastsEl=$('toasts');
 
   /* ---------- helpers ---------- */
-  function clone(a){ return a.map(function(c){ return {id:c.id,text:c.text,start:c.start,end:c.end,flagged:c.flagged}; }); }
+  function clone(a){ return a.map(function(c){ return {id:c.id,text:c.text,start:c.start,end:c.end,flagged:c.flagged,note:c.note}; }); }
   function words(t){ return t.replace(/\n/g,' ').trim().split(/\s+/).filter(Boolean); }
-  function fmt(ms){
-    var h=Math.floor(ms/3600000), m=Math.floor(ms%3600000/60000),
-        s=Math.floor(ms%60000/1000), mm=Math.floor(ms%1000);
-    function p(n,w){ n=""+n; while(n.length<w) n="0"+n; return n; }
-    return p(h,2)+":"+p(m,2)+":"+p(s,2)+","+p(mm,3);
-  }
+  function fmt(ms){ var h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),s=Math.floor(ms%60000/1000),mm=Math.floor(ms%1000);
+    function p(n,w){n=""+n;while(n.length<w)n="0"+n;return n;} return p(h,2)+":"+p(m,2)+":"+p(s,2)+","+p(mm,3); }
   function esc(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function find(id){ for(var i=0;i<caps.length;i++) if(caps[i].id===id) return caps[i]; return null; }
   function indexOf(id){ for(var i=0;i<caps.length;i++) if(caps[i].id===id) return i; return -1; }
 
-  /* ---------- history ---------- */
-  function snapshot(){ undoStack.push(clone(caps)); if(undoStack.length>60) undoStack.shift(); redoStack.length=0; dirty=true; }
-  function undo(){ if(!undoStack.length) return; redoStack.push(clone(caps)); caps=undoStack.pop(); selId=null; render(); toast("Undo",'ok'); }
-  function redo(){ if(!redoStack.length) return; undoStack.push(clone(caps)); caps=redoStack.pop(); selId=null; render(); toast("Redo",'ok'); }
+  /* ---------- history stack ---------- */
+  function snapshot(){ undoStack.push(clone(caps)); if(undoStack.length>80) undoStack.shift(); redoStack.length=0; dirty=true; }
+  function undo(){ if(!undoStack.length){toast("Nothing to undo");return;} redoStack.push(clone(caps)); caps=undoStack.pop(); selId=null; render(); toast("Undo",'ok'); }
+  function redo(){ if(!redoStack.length){toast("Nothing to redo");return;} undoStack.push(clone(caps)); caps=redoStack.pop(); selId=null; render(); toast("Redo",'ok'); }
 
-  /* ---------- mutations ---------- */
-  function delCap(id){ snapshot(); caps = caps.filter(function(c){return c.id!==id;}); if(selId===id) selId=null; render(); toast("Line deleted",'ok'); }
-  function flagCap(id){ var c=find(id); if(!c) return; snapshot(); c.flagged=!c.flagged; render(); }
+  /* ---------- edits ---------- */
+  function delCap(id){ snapshot(); caps=caps.filter(function(c){return c.id!==id;}); if(selId===id)selId=null; render(); toast("Line deleted",'ok'); }
+  function flagCap(id){ var c=find(id); if(!c)return; snapshot(); c.flagged=!c.flagged; if(!c.flagged)c.note=""; selId=id; render(); }
+  function splitAfter(id, after){ var i=indexOf(id); if(i<0)return; var c=caps[i], ws=words(c.text);
+    if(after<0||after>=ws.length-1)return; snapshot();
+    var t1=ws.slice(0,after+1).join(' '), t2=ws.slice(after+1).join(' ');
+    var frac=t1.length/(t1.length+t2.length), mid=Math.round(c.start+(c.end-c.start)*frac);
+    caps.splice(i,1,{id:uid(),text:t1,start:c.start,end:mid,flagged:c.flagged,note:c.note},{id:uid(),text:t2,start:mid,end:c.end,flagged:false,note:""});
+    selId=caps[i+1].id; render(); toast("Caption split",'ok'); }
+  function mergeNext(id){ var i=indexOf(id); if(i<0||i>=caps.length-1)return; snapshot();
+    var a=caps[i],b=caps[i+1]; a.text=(a.text+' '+b.text).replace(/\s+/g,' ').trim(); a.end=b.end; a.flagged=a.flagged||b.flagged;
+    caps.splice(i+1,1); selId=a.id; render(); toast("Lines merged",'ok'); }
+  function mergeWords(id, after){ var c=find(id); if(!c)return; var ws=words(c.text); if(after<0||after>=ws.length-1)return;
+    snapshot(); ws.splice(after,2,ws[after]+ws[after+1]); c.text=ws.join(' '); render(); }
+  function commitWord(id, wIndex, newText){ var c=find(id); if(!c)return; var ws=words(c.text);
+    newText=newText.replace(/\s+/g,' ').trim(); if(wIndex<0||wIndex>=ws.length)return; if(newText===ws[wIndex])return;
+    snapshot(); if(newText==="")ws.splice(wIndex,1); else ws.splice(wIndex,1,newText); c.text=ws.join(' ');
+    if(!c.text){ caps=caps.filter(function(x){return x.id!==id;}); toast("Line deleted",'ok'); } render(); }
+  function commitNote(id, txt){ var c=find(id); if(!c)return; c.note=txt.trim(); dirty=true; }
 
-  // Split a caption AFTER word index `after` (0-based) — matches the real "/" divider.
-  function splitAfter(id, after){
-    var i = indexOf(id); if(i<0) return;
-    var c = caps[i], ws = words(c.text);
-    if(after<0 || after>=ws.length-1) return;
-    snapshot();
-    var t1 = ws.slice(0,after+1).join(' '), t2 = ws.slice(after+1).join(' ');
-    var frac = t1.length/(t1.length+t2.length);
-    var midMs = Math.round(c.start + (c.end-c.start)*frac);
-    var a = {id:uid(), text:t1, start:c.start, end:midMs, flagged:c.flagged};
-    var b = {id:uid(), text:t2, start:midMs, end:c.end, flagged:false};
-    caps.splice(i,1,a,b); selId=b.id; render(); toast("Caption split",'ok');
-  }
-  // Merge this caption with the next one (trailing "/").
-  function mergeNext(id){
-    var i = indexOf(id); if(i<0 || i>=caps.length-1) return;
-    snapshot();
-    var a = caps[i], b = caps[i+1];
-    a.text = (a.text+' '+b.text).replace(/\s+/g,' ').trim();
-    a.end = b.end; a.flagged = a.flagged || b.flagged;
-    caps.splice(i+1,1); selId=a.id; render(); toast("Lines merged",'ok');
-  }
-  // Alt-click a divider → merge the two words on either side into one.
-  function mergeWords(id, after){
-    var c = find(id); if(!c) return;
-    var ws = words(c.text);
-    if(after<0 || after>=ws.length-1) return;
-    snapshot();
-    ws.splice(after,2, ws[after]+ws[after+1]);
-    c.text = ws.join(' '); render();
-  }
-  // Commit an edited single word (may become empty → drop it, or multiple words).
-  function commitWord(id, wIndex, newText){
-    var c = find(id); if(!c) return;
-    var ws = words(c.text);
-    newText = newText.replace(/\s+/g,' ').trim();
-    if(wIndex<0 || wIndex>=ws.length) return;
-    if(newText === ws[wIndex]) return;
-    snapshot();
-    if(newText === ''){ ws.splice(wIndex,1); }
-    else { ws.splice(wIndex,1, newText); }
-    c.text = ws.join(' ');
-    if(!c.text){ caps = caps.filter(function(x){return x.id!==id;}); toast("Line deleted",'ok'); }
-    render();
-  }
+  /* ---------- cleanup ---------- */
+  function cleanup(kind){ if(!caps.length)return; snapshot();
+    if(kind==='gaps'){ for(var i=0;i<caps.length-1;i++) caps[i].end=caps[i+1].start; toast("Gaps removed",'ok'); }
+    else if(kind==='breaks'){ caps.forEach(function(c){ c.text=c.text.replace(/\s*\n\s*/g,' ').replace(/\s+/g,' ').trim(); }); toast("Line breaks removed",'ok'); }
+    else if(kind==='punct'){ caps.forEach(function(c){ c.text=c.text.replace(/[.,!?;:—–"“”'’]/g,'').replace(/\s+/g,' ').trim(); }); toast("Punctuation removed",'ok'); }
+    render(); }
+
+  /* ---------- find & replace ---------- */
+  function findRegex(g){ if(!findQuery)return null; var q=findQuery.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    if(findWord)q='\\b'+q+'\\b'; return new RegExp(q,(g?'g':'')+(findCase?'':'i')); }
+  function runFind(){ // recount + render
+    matchTotal=0; if(findQuery){ var re=findRegex(true); caps.forEach(function(c){ var m=c.text.match(re); if(m)matchTotal+=m.length; }); }
+    if(curMatch>=matchTotal)curMatch=0; render(); updateFindCount(); }
+  function updateFindCount(){ $('findCount').textContent=(matchTotal?curMatch+1:0)+"/"+matchTotal; }
+  function stepMatch(d){ if(!matchTotal)return; curMatch=(curMatch+d+matchTotal)%matchTotal; render(); updateFindCount();
+    var cur=listEl.querySelector('mark.current'); if(cur)cur.scrollIntoView({block:'nearest'}); }
+  function replaceAll(){ if(!findQuery||!matchTotal)return; var rep=$('replaceInput').value; snapshot();
+    var re=findRegex(true); var n=matchTotal; caps.forEach(function(c){ c.text=c.text.replace(re,rep); }); curMatch=0; runFind();
+    toast("Replaced "+n+" match"+(n===1?"":"es"),'ok'); }
 
   /* ---------- toolbar actions ---------- */
-  function doImport(){
-    var run = function(){ caps = seed(); selId=null; undoStack.length=0; redoStack.length=0; dirty=false; render(); toast("Imported demo.srt",'ok'); };
-    if(dirty){ toast("Changes saved",'ok'); setTimeout(run,1100); } else { run(); }
-  }
-  function doExport(){ if(!caps.length) return; toast("Exported "+caps.length+" captions to SRT",'ok'); }
-  function doPush(){ if(!caps.length) return; toast("Pushed "+caps.length+" captions to the timeline",'ok'); dirty=false; }
+  function doImport(){ var run=function(){ caps=seed(); selId=null; undoStack.length=0; redoStack.length=0; dirty=false; clearFind(); render(); toast("Imported demo.srt",'ok'); };
+    if(dirty){ toast("Changes saved",'ok'); setTimeout(run,1050); } else run(); }
+  function doExport(){ if(!caps.length)return; toast("Exported "+caps.length+" captions to SRT",'ok'); }
+  function doPush(){ if(!caps.length)return; toast("Pushed "+caps.length+" captions to the timeline",'ok'); dirty=false; }
+  function toggleSync(){ syncOn=!syncOn; var b=$('btnSync'); b.classList.toggle('on',syncOn); b.title="Sync: "+(syncOn?"ON":"OFF");
+    toast(syncOn?"Sync on — follows the Premiere timeline":"Sync off",syncOn?'ok':null); }
 
-  /* ---------- toast ---------- */
+  /* ---------- toast — ONE at a time, replaced in the same spot ---------- */
+  var toastTimer=null;
   function toast(msg, kind){
-    var el = document.createElement('div');
-    el.className = 'toast '+(kind||'');
-    el.innerHTML = '<span class="tdot"></span>'+esc(msg);
-    toastsEl.appendChild(el);
+    toastsEl.innerHTML='';                 // drop any existing toast immediately
+    if(toastTimer){ clearTimeout(toastTimer); toastTimer=null; }
+    var el=document.createElement('div'); el.className='toast '+(kind||'');
+    el.innerHTML='<span class="tdot"></span>'+esc(msg); toastsEl.appendChild(el);
     requestAnimationFrame(function(){ el.classList.add('show'); });
-    setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); }, 240); }, 2500);
+    toastTimer=setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ if(el.parentNode)el.remove(); },200); }, 2400);
   }
 
   /* ---------- render ---------- */
+  function highlight(text){ // used when a find query is active
+    var re=findRegex(true); var out='', last=0, m, gi=window.__gi;
+    re.lastIndex=0;
+    while((m=re.exec(text))!==null){
+      out+=esc(text.slice(last,m.index));
+      var isCur=(window.__gi===curMatch);
+      out+='<mark class="match'+(isCur?' current':'')+'">'+esc(m[0])+'</mark>';
+      window.__gi++; last=m.index+m[0].length;
+      if(m[0]===''){ re.lastIndex++; }
+    }
+    out+=esc(text.slice(last)); return out;
+  }
+  function wordBody(c){
+    var ws=words(c.text), body='';
+    for(var w=0;w<ws.length;w++){
+      body+='<span class="word" data-id="'+c.id+'" data-w="'+w+'">'+esc(ws[w])+'</span>';
+      if(w<ws.length-1) body+='<span class="word-divider" data-id="'+c.id+'" data-after="'+w+'" title="Click to split · Alt-click to merge the two words">/</span>';
+    }
+    return body;
+  }
   function render(){
-    editing = null;
-    btnUndo.disabled = !undoStack.length;
-    btnRedo.disabled = !redoStack.length;
-    btnPush.disabled = !caps.length;
-    btnExport.disabled = !caps.length;
-    countEl.textContent = caps.length + (caps.length===1?" caption":" captions");
+    editing=null;
+    $('btnUndo').disabled=!undoStack.length; $('btnRedo').disabled=!redoStack.length;
+    $('btnExport').disabled=!caps.length; $('btnPush').disabled=!caps.length;
+    Array.prototype.forEach.call(document.querySelectorAll('.cleanup-btn'),function(b){ b.disabled=!caps.length; });
+    $('count').textContent=caps.length+(caps.length===1?" caption":" captions");
 
     if(!caps.length){
-      listEl.innerHTML =
-        '<div class="empty">'+
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h4M7 14h7"/></svg>'+
-        '<p>No captions yet. Hit the import button to load a sample.</p>'+
-        '</div>';
+      listEl.innerHTML='<div class="empty"><svg class="cutcap-logo" viewBox="0 0 1249.94 610.87"><path d="M168.74,549.45L0,610.87v-155.93l168.74-61.42v155.93ZM168.74,61.42L0,0v155.93l168.74,61.42V61.42ZM1081.2,61.42v155.93l168.74-61.42V0l-168.74,61.42ZM1081.2,549.45l168.74,61.42v-155.93l-168.74-61.42v155.93ZM712.68,195.55l214.2,77.96,91.82-33.42V84.16l-306.02,111.38ZM536.69,195.34L231.24,84.16v155.93l91.24,33.21,214.2-77.96ZM993.12,361.72l-336.9-122.62v155.68l362.48,131.93v-155.93l-25.58-9.31v.25ZM410.54,305.35l.23.08-179.53,65.34v155.93l362.48-131.93v-156.1l-183.19,66.67Z" fill="currentColor"/></svg><p>Import a caption file to get started</p><p class="sub">or drag and drop a .srt, .vtt, or .csv file here</p></div>';
       return;
     }
-
-    var html = '';
-    caps.forEach(function(c, i){
-      var sel = c.id===selId ? ' sel' : '';
-      var fl  = c.flagged ? ' flagged' : '';
-      var ws  = words(c.text);
-      var body = '';
-      for(var w=0; w<ws.length; w++){
-        body += '<span class="word" data-id="'+c.id+'" data-w="'+w+'">'+esc(ws[w])+'</span>';
-        if(w < ws.length-1){
-          body += '<span class="word-divider" data-id="'+c.id+'" data-after="'+w+'" title="Click to split · Alt-click to merge the two words">/</span>';
-        }
-      }
-      if(i < caps.length-1){
-        body += '<span class="word-divider" data-id="'+c.id+'" data-trailing="1" title="Click to merge with the next line">/</span>';
-      }
-      html +=
-        '<div class="cap'+sel+fl+'" data-id="'+c.id+'">'+
-          '<span class="bar"></span>'+
-          '<span class="idx">'+(i+1)+'</span>'+
-          '<div class="body">'+
-            '<div class="tc">'+fmt(c.start)+'<span class="arr">&rarr;</span>'+fmt(c.end)+'</div>'+
-            '<div class="txt">'+body+'</div>'+
-          '</div>'+
+    window.__gi=0;
+    var html='';
+    caps.forEach(function(c,i){
+      var sel=c.id===selId?' sel':'', fl=c.flagged?' flagged':'';
+      var body=findQuery?highlight(c.text):wordBody(c);
+      html+='<div class="cap'+sel+fl+'" data-id="'+c.id+'">'+
+        '<span class="bar"></span>'+
+        '<div class="chead"><span class="idx">'+(i+1)+'</span>'+
+          '<div class="tc">'+fmt(c.start)+'<span class="arr">&rarr;</span>'+fmt(c.end)+'</div>'+
           '<div class="row-actions">'+
-            '<button class="mini flag" data-act="flag" data-id="'+c.id+'" title="Flag">'+
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h13l-2 4 2 4H4"/></svg></button>'+
-            '<button class="mini del" data-act="del" data-id="'+c.id+'" title="Delete">'+
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>'+
-          '</div>'+
+            '<button class="mini flag" data-act="flag" data-id="'+c.id+'" title="Flag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h13l-2 4 2 4H4"/></svg></button>'+
+            '<button class="mini del" data-act="del" data-id="'+c.id+'" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>'+
+          '</div></div>'+
+        '<div class="txt">'+body+'</div>'+
+        (c.flagged?'<div class="note" contenteditable="true" data-id="'+c.id+'" data-ph="Add a review note…">'+esc(c.note||'')+'</div>':'')+
         '</div>';
     });
-    listEl.innerHTML = html;
+    listEl.innerHTML=html;
   }
 
-  /* ---------- word edit mode ---------- */
-  function startEdit(spanEl){
-    var id = spanEl.getAttribute('data-id'), w = Number(spanEl.getAttribute('data-w'));
-    editing = {capId:id, wIndex:w};
-    selId = id;
-    spanEl.setAttribute('contenteditable','true');
-    spanEl.focus();
-    var r = document.createRange(); r.selectNodeContents(spanEl);
-    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
-    hintEl.textContent = "Enter to save · Esc to cancel";
-  }
+  /* ---------- word edit ---------- */
+  function startEdit(span){ editing={capId:span.getAttribute('data-id'),wIndex:Number(span.getAttribute('data-w'))}; selId=editing.capId;
+    span.setAttribute('contenteditable','true'); span.focus();
+    var r=document.createRange(); r.selectNodeContents(span); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    hintEl.textContent="Enter to save · Esc to cancel"; }
 
-  /* ---------- events (delegated) ---------- */
+  /* ---------- overlays ---------- */
+  function closeAll(except){ ['appMenu','historyPanel','findBar'].forEach(function(id){ if(id!==except)$(id).hidden=true; });
+    $('btnFind').classList.toggle('on', except==='findBar'); }
+  function toggle(id){ var el=$(id), willShow=el.hidden; closeAll(willShow?id:null); el.hidden=!willShow; return willShow; }
+
+  /* ---------- find open/close ---------- */
+  function openFind(){ if(toggle('findBar')){ $('findInput').focus(); } else clearFind(); }
+  function clearFind(){ findQuery=""; $('findInput').value=""; curMatch=0; matchTotal=0; $('findBar').hidden=true; $('btnFind').classList.remove('on'); render(); }
+
+  /* ---------- history ---------- */
+  function buildHistory(){ var h=''; HISTORY.forEach(function(x,i){ h+='<div class="hitem" data-h="'+i+'"><div class="hname">'+esc(x.name)+'</div><div class="hprev">'+esc(x.prev)+'</div><div class="hmeta">'+esc(x.meta)+'</div></div>'; }); $('historyList').innerHTML=h; }
+  function loadHistory(i){ var x=HISTORY[i]; $('historyPanel').hidden=true;
+    // demo: reload the sample edits; a real panel would restore that file's captions
+    caps=seed(); selId=null; undoStack.length=0; redoStack.length=0; clearFind(); render();
+    toast("Reopened "+x.name,'ok'); }
+
+  /* ---------- settings: theme / accent / UI size ---------- */
+  function setTheme(mode){ if(mode==='dark')root.removeAttribute('data-theme'); else root.setAttribute('data-theme',mode);
+    seg('segTheme',mode); }
+  function hexToRgb(h){ h=h.replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+  function setAccent(hex){ if(!/^#?[0-9a-fA-F]{6}$/.test(hex.replace('#','')))return; if(hex[0]!=='#')hex='#'+hex;
+    var rgb=hexToRgb(hex); var hi=rgb.map(function(v){return Math.round(v*0.85);});
+    root.style.setProperty('--accent',hex);
+    root.style.setProperty('--accent-hi','rgb('+hi.join(',')+')');
+    root.style.setProperty('--accent-dim','rgba('+rgb.join(',')+',0.14)');
+    root.style.setProperty('--accent-sel','rgba('+rgb.join(',')+',0.30)');
+    root.style.setProperty('--match-bg','rgba('+rgb.join(',')+',0.32)');
+    $('accentHex').value=hex.toUpperCase(); $('accentColor').value=hex;
+    $('accentSwatch').style.background=hex; }
+  function setUiSize(v){ $('panel').style.zoom=(v/100); $('uiSizeVal').textContent=v+'%'; $('uiSize').value=v; }
+  function seg(groupId,val){ Array.prototype.forEach.call($(groupId).querySelectorAll('.seg'),function(b){ b.classList.toggle('on',b.getAttribute('data-v')===val); }); }
+
+  function openModal(id){ closeAll(null); $(id).hidden=false; }
+  function closeModal(id){ $(id).hidden=true; }
+
+  /* =========================================================================
+     EVENTS
+  ==========================================================================*/
+  // list interactions
   listEl.addEventListener('click', function(e){
-    // row action buttons
-    var b = e.target.closest('.mini');
-    if(b){ e.preventDefault();
-      var id=b.getAttribute('data-id'), act=b.getAttribute('data-act');
-      if(act==='flag') flagCap(id); else if(act==='del') delCap(id);
-      return;
-    }
-    // "/" dividers → split / merge
-    var div = e.target.closest('.word-divider');
-    if(div){
-      var did = div.getAttribute('data-id');
-      if(div.getAttribute('data-trailing')==='1'){ mergeNext(did); }
-      else{
-        var after = Number(div.getAttribute('data-after'));
-        if(e.altKey) mergeWords(did, after); else splitAfter(did, after);
-      }
-      return;
-    }
-    // selecting a line (don't disturb a word already being edited)
-    var cap = e.target.closest('.cap');
-    if(cap && !e.target.classList.contains('word')){
-      selId = cap.getAttribute('data-id');
-      Array.prototype.forEach.call(listEl.querySelectorAll('.cap'), function(el){
-        el.classList.toggle('sel', el.getAttribute('data-id')===selId);
-      });
+    var b=e.target.closest('.mini');
+    if(b){ e.preventDefault(); var id=b.getAttribute('data-id'), act=b.getAttribute('data-act'); if(act==='flag')flagCap(id); else delCap(id); return; }
+    var div=e.target.closest('.word-divider');
+    if(div){ var did=div.getAttribute('data-id'); if(div.getAttribute('data-trailing')==='1'){ mergeNext(did); } else { var af=Number(div.getAttribute('data-after')); if(e.altKey)mergeWords(did,af); else splitAfter(did,af); } return; }
+    var cap=e.target.closest('.cap');
+    if(cap && !e.target.classList.contains('word') && !e.target.classList.contains('note')){
+      selId=cap.getAttribute('data-id');
+      Array.prototype.forEach.call(listEl.querySelectorAll('.cap'),function(el){ el.classList.toggle('sel',el.getAttribute('data-id')===selId); });
     }
   });
-
-  // double-click a word → edit just that word
-  listEl.addEventListener('dblclick', function(e){
-    var wEl = e.target.closest('.word');
-    if(wEl){ e.preventDefault(); startEdit(wEl); }
-  });
-
-  // commit / cancel word edits
+  listEl.addEventListener('dblclick', function(e){ var w=e.target.closest('.word'); if(w){ e.preventDefault(); startEdit(w); } });
   listEl.addEventListener('keydown', function(e){
-    if(!editing) return;
-    if(e.key==='Enter'){ e.preventDefault(); e.target.blur(); }
-    else if(e.key==='Escape'){ e.preventDefault(); editing=null; render(); }
+    if(editing && e.target.classList.contains('word')){ if(e.key==='Enter'){e.preventDefault();e.target.blur();} else if(e.key==='Escape'){e.preventDefault();editing=null;render();} }
   });
   listEl.addEventListener('focusout', function(e){
-    if(editing && e.target.classList && e.target.classList.contains('word')){
-      var ed = editing; editing = null;
-      hintEl.textContent = "Click a / to split · double-click a word to edit";
-      commitWord(ed.capId, ed.wIndex, e.target.textContent);
-    }
+    if(editing && e.target.classList && e.target.classList.contains('word')){ var ed=editing; editing=null; hintEl.textContent="Hover a line, click a / to split · double-click a word to edit"; commitWord(ed.capId,ed.wIndex,e.target.textContent); }
+    else if(e.target.classList && e.target.classList.contains('note')){ commitNote(e.target.getAttribute('data-id'), e.target.textContent); }
   });
 
-  document.getElementById('btnImport').addEventListener('click', doImport);
-  btnExport.addEventListener('click', doExport);
-  btnPush.addEventListener('click', doPush);
-  btnUndo.addEventListener('click', undo);
-  btnRedo.addEventListener('click', redo);
+  // toolbar
+  $('btnImport').addEventListener('click', doImport);
+  $('btnExport').addEventListener('click', doExport);
+  $('btnPush').addEventListener('click', doPush);
+  $('btnUndo').addEventListener('click', undo);
+  $('btnRedo').addEventListener('click', redo);
+  $('btnSync').addEventListener('click', toggleSync);
+  $('btnFind').addEventListener('click', openFind);
+  $('btnMenu').addEventListener('click', function(e){ e.stopPropagation(); toggle('appMenu'); });
+  $('btnHistory').addEventListener('click', function(e){ e.stopPropagation(); if(toggle('historyPanel'))buildHistory(); });
 
+  // app menu
+  $('appMenu').addEventListener('click', function(e){ var it=e.target.closest('.menu-item'); if(!it)return; $('appMenu').hidden=true;
+    if(it.getAttribute('data-menu')==='settings')openModal('settingsModal'); else openModal('aboutModal'); });
+  // history
+  $('historyList').addEventListener('click', function(e){ var it=e.target.closest('.hitem'); if(it)loadHistory(Number(it.getAttribute('data-h'))); });
+
+  // cleanup
+  $('cleanup').addEventListener('click', function(e){ var b=e.target.closest('.cleanup-btn'); if(b)cleanup(b.getAttribute('data-clean')); });
+
+  // find bar
+  $('findInput').addEventListener('input', function(){ findQuery=this.value; curMatch=0; runFind(); });
+  $('findInput').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); e.shiftKey?stepMatch(-1):stepMatch(1); } else if(e.key==='Escape'){ clearFind(); } });
+  $('findPrev').addEventListener('click', function(){ stepMatch(-1); });
+  $('findNext').addEventListener('click', function(){ stepMatch(1); });
+  $('findClose').addEventListener('click', clearFind);
+  $('findCase').addEventListener('click', function(){ findCase=!findCase; this.classList.toggle('on',findCase); runFind(); });
+  $('findWord').addEventListener('click', function(){ findWord=!findWord; this.classList.toggle('on',findWord); runFind(); });
+  $('replaceAll').addEventListener('click', replaceAll);
+
+  // settings nav
+  Array.prototype.forEach.call(document.querySelectorAll('.snav'),function(n){ n.addEventListener('click',function(){
+    var p=this.getAttribute('data-pane');
+    Array.prototype.forEach.call(document.querySelectorAll('.snav'),function(x){x.classList.toggle('on',x===n);});
+    Array.prototype.forEach.call(document.querySelectorAll('.spane'),function(x){x.classList.toggle('on',x.getAttribute('data-pane')===p);});
+  }); });
+  // theme
+  $('segTheme').addEventListener('click', function(e){ var b=e.target.closest('.seg'); if(b)setTheme(b.getAttribute('data-v')); });
+  // cleanup show/hide
+  $('segCleanup').addEventListener('click', function(e){ var b=e.target.closest('.seg'); if(!b)return; seg('segCleanup',b.getAttribute('data-v')); $('cleanup').style.display=b.getAttribute('data-v')==='on'?'':'none'; });
+  // accent
+  $('accentColor').addEventListener('input', function(){ setAccent(this.value); });
+  $('accentHex').addEventListener('change', function(){ setAccent(this.value.trim()); });
+  $('accentReset').addEventListener('click', function(){ setAccent('#f03d13'); });
+  // ui size
+  $('uiSize').addEventListener('input', function(){ setUiSize(Number(this.value)); });
+  $('uiSizeReset').addEventListener('click', function(){ setUiSize(100); });
+  // presets
+  (function(){ var h=''; PRESETS.forEach(function(c){ h+='<button class="sw" data-c="'+c+'" style="background:'+c+'" title="'+c+'"></button>'; }); $('accentPresets').innerHTML=h;
+    $('accentPresets').addEventListener('click', function(e){ var b=e.target.closest('.sw'); if(b)setAccent(b.getAttribute('data-c')); }); })();
+
+  // modal close (button + backdrop)
+  Array.prototype.forEach.call(document.querySelectorAll('[data-close]'),function(b){ b.addEventListener('click',function(){ closeModal(this.getAttribute('data-close')==='settings'?'settingsModal':'aboutModal'); }); });
+  ['settingsModal','aboutModal'].forEach(function(id){ $(id).addEventListener('click',function(e){ if(e.target===this)closeModal(id); }); });
+
+  // global keys + outside-click
   document.addEventListener('keydown', function(e){
-    if(editing) return; // let the field handle typing
-    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); }
-    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); }
+    if(!$('settingsModal').hidden||!$('aboutModal').hidden){ if(e.key==='Escape'){closeModal('settingsModal');closeModal('aboutModal');} return; }
+    if(editing)return;
+    if(e.key==='Escape'){ closeAll(null); if(findQuery)clearFind(); return; }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){ e.preventDefault(); openFind(); return; }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); }
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); }
+  });
+  document.addEventListener('click', function(e){ // outside click closes menu/history
+    if(!e.target.closest('#appMenu')&&!e.target.closest('#btnMenu')) $('appMenu').hidden=true;
+    if(!e.target.closest('#historyPanel')&&!e.target.closest('#btnHistory')) $('historyPanel').hidden=true;
   });
 
+  setAccent('#f03d13');
   render();
 })();
 </script>

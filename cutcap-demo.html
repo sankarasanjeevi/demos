@@ -2046,12 +2046,19 @@ body {
 </style>
 
 <style>
-.setting-row:has(#ui-size-slider) { display: none !important; }
+body { zoom: 1 !important; width: 100% !important; height: 100% !important; }
+#app { zoom: var(--ui-zoom, 1) !important; transform: none !important; }
+.setting-row:has(#ui-size-slider)   { display: none !important; }
+.setting-row:has(#set-ui-btn-mogrt) { display: none !important; }
 #btn-mogrt { display: none !important; }
 </style>
 
 <script>
-try { localStorage.removeItem('cutcap.sessions'); localStorage.removeItem('cutcap.activeId'); } catch (e) {}
+try {
+  localStorage.removeItem('cutcap.sessions');
+  localStorage.removeItem('cutcap.activeId');
+  localStorage.setItem('cutcap.uiScale', '130');   // demo loads at 130% (applied on #app; see overrides)
+} catch (e) {}
 </script>
 </head>
 <body>
@@ -7842,12 +7849,16 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script>
-/* DEMO SEED — loads sample captions through the panel's own .srt import path
-   (a synthetic file drop on #editor-container), so the demo shows the exact
-   real editor. Only seeds the empty state, so a returning visitor's edits are
-   kept. This is the ONLY code added on top of the shipping panel. */
+/* DEMO SEED — everything is driven through the panel's own APIs so the demo is
+   the real editor, not a mock:
+     - a few back-dated sessions are created via CutCapStore.create + parseSRT so
+       "Recent edits" (History) looks lived-in;
+     - the main sample is loaded through the real .srt import path (a synthetic
+       file drop on #editor-container), which makes it the active session.
+   Only runs on the empty state, so a returning visitor's edits are kept. This is
+   the ONLY code added on top of the shipping panel. */
 (function(){
-  var SRT = [
+  var MAIN = [
     "1","00:00:00,000 --> 00:00:02,400","Welcome to CutCap.","",
     "2","00:00:02,400 --> 00:00:06,000","Click the slash between words to split a caption.","",
     "3","00:00:06,000 --> 00:00:08,600","Double-click a word to fix it.","",
@@ -7855,12 +7866,37 @@ document.addEventListener('DOMContentLoaded', function () {
     "5","00:00:11,000 --> 00:00:13,200","Undo and redo have your back.","",
     "6","00:00:13,200 --> 00:00:15,600","Then push them straight back to your timeline.",""
   ].join("\n");
+  // Extra history entries (label + how long ago + a short caption body).
+  var EXTRAS = [
+    { label: "Podcast_ep12.srt",   ago: 18*60*1000,
+      srt: "1\n00:00:00,000 --> 00:00:03,000\nSo the big question this week\n\n2\n00:00:03,000 --> 00:00:06,000\nis how we scale the team." },
+    { label: "Interview_2cam.srt", ago: 3*60*60*1000,
+      srt: "1\n00:00:00,000 --> 00:00:02,500\nTell me about your process.\n\n2\n00:00:02,500 --> 00:00:05,500\nIt starts with a rough cut." },
+    { label: "Promo_teaser.srt",   ago: 27*60*60*1000,
+      srt: "1\n00:00:00,000 --> 00:00:02,000\nOne app. Zero friction.\n\n2\n00:00:02,000 --> 00:00:04,000\nEdit captions right in Premiere." }
+  ];
   function seed(){
     var ec = document.getElementById('editor-container');
     if (!ec) return;
-    if (ec.querySelector('[data-id]')) return;               // already has captions (returning visitor)
+    if (ec.querySelector('[data-id]')) return;               // already seeded this session
     try {
-      var f  = new File([SRT], 'demo.srt', { type: 'text/plain' });
+      // 1) extra sessions for the History panel (real store + real parser)
+      if (typeof CutCapStore !== 'undefined' && typeof parseSRT !== 'undefined') {
+        EXTRAS.forEach(function (x) { try { CutCapStore.create(x.label, parseSRT(x.srt)); } catch (e) {} });
+        // back-date them so History shows "18m ago / 3h ago / yesterday", not all "just now"
+        try {
+          var now = Date.now();
+          var list = JSON.parse(localStorage.getItem('cutcap.sessions') || '[]');
+          list.forEach(function (s) {
+            for (var i = 0; i < EXTRAS.length; i++) {
+              if (s.label === EXTRAS[i].label) { s.updatedAt = now - EXTRAS[i].ago; s.createdAt = s.updatedAt; }
+            }
+          });
+          localStorage.setItem('cutcap.sessions', JSON.stringify(list));
+        } catch (e) {}
+      }
+      // 2) main sample via the real import path -> becomes the active session
+      var f  = new File([MAIN], 'demo.srt', { type: 'text/plain' });
       var dt = new DataTransfer(); dt.items.add(f);
       ec.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
     } catch (e) {}

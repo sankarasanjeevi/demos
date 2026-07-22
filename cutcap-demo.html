@@ -101,11 +101,15 @@
     outline:1px solid var(--accent);background:var(--accent-dim);
     padding:1px 3px;margin:0 -3px;border-radius:var(--r-sm);cursor:text;
   }
+  /* Split handles stay hidden until you hover/select a line, so captions read
+     clean at rest; opacity (not display) keeps spacing stable — no layout shift. */
   .word-divider{
-    display:inline-block;padding:0 4px;color:var(--text-muted);cursor:pointer;
-    user-select:none;font-size:.85em;border-radius:2px;transition:color .12s,background .12s;
+    display:inline-block;padding:0 3px;color:var(--text-muted);cursor:pointer;
+    user-select:none;font-size:.85em;border-radius:2px;opacity:0;
+    transition:opacity .12s,color .12s,background .12s;
   }
-  .word-divider:hover{color:var(--accent);background:var(--accent-dim)}
+  .cap:hover .word-divider,.cap.sel .word-divider{opacity:1}
+  .word-divider:hover{color:var(--accent);background:var(--accent-dim);opacity:1}
   .cap .row-actions{
     display:flex;gap:2px;align-self:flex-start;opacity:0;transition:opacity .1s;
     padding-top:1px;

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CutCap — live demo</title>
+<style>
+  /* ---- CutCap deep-navy theme tokens (mirrors the real panel) ---- */
+  :root{
+    --bg:#000f1f; --surface:#04203a; --surface-hi:#0a2c4d;
+    --border:#123a5c; --border-hi:#1c4d78;
+    --text:#d6e6f5; --text-dim:#7d97b0; --text-muted:#42607d;
+    --accent:#f03d13; --accent-hi:#ff5a34; --accent-dim:rgba(240,61,19,.16);
+    --danger:#ed1515; --flag:#ed7e15; --success:#35c07a;
+    --r-sm:4px; --r-md:8px; --r-lg:12px;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'SFMono-Regular',ui-monospace,'Menlo','Consolas',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%}
+  body{
+    font-family:var(--font);font-size:13px;color:var(--text);
+    background:transparent;
+    display:flex;align-items:center;justify-content:center;
+    padding:14px;
+  }
+  /* ---- panel shell ---- */
+  .panel{
+    width:100%;max-width:452px;height:588px;
+    background:var(--bg);
+    border:1px solid var(--border);border-radius:var(--r-lg);
+    box-shadow:0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.02) inset;
+    display:flex;flex-direction:column;overflow:hidden;position:relative;
+  }
+  /* ---- toolbar ---- */
+  .toolbar{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 12px;border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,var(--surface),var(--bg));
+  }
+  .brand{display:flex;align-items:center;gap:7px;margin-right:2px}
+  .brand .dot{width:8px;height:8px;border-radius:2px;background:var(--accent)}
+  .brand .wm{font-weight:700;letter-spacing:-.01em;font-size:13.5px}
+  .spacer{flex:1}
+  .iconbtn{
+    width:30px;height:30px;display:grid;place-items:center;
+    background:transparent;border:1px solid transparent;border-radius:var(--r-sm);
+    color:var(--text-dim);cursor:pointer;transition:all .12s;
+  }
+  .iconbtn:hover{background:var(--surface-hi);color:var(--text);border-color:var(--border)}
+  .iconbtn:disabled{opacity:.32;cursor:not-allowed}
+  .iconbtn:disabled:hover{background:transparent;color:var(--text-dim);border-color:transparent}
+  .iconbtn svg{width:16px;height:16px}
+  .btn{
+    display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;
+    border-radius:var(--r-sm);border:1px solid var(--border-hi);
+    background:var(--surface-hi);color:var(--text);font-family:var(--font);
+    font-size:12.5px;font-weight:600;cursor:pointer;transition:all .12s;
+  }
+  .btn svg{width:15px;height:15px}
+  .btn:hover{background:#103a5e}
+  .btn.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.accent:hover{background:var(--accent-hi)}
+  .btn:disabled{opacity:.34;cursor:not-allowed}
+  .divider{width:1px;height:18px;background:var(--border);margin:0 2px}
+  /* ---- list ---- */
+  .list{flex:1;overflow-y:auto;padding:8px 8px 14px}
+  .list::-webkit-scrollbar{width:9px}
+  .list::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;border:2px solid var(--bg)}
+  .list::-webkit-scrollbar-thumb:hover{background:var(--border-hi)}
+  .cap{
+    position:relative;display:flex;gap:10px;padding:9px 10px 9px 12px;
+    border-radius:var(--r-md);border:1px solid transparent;cursor:text;
+    transition:background .1s,border-color .1s;
+  }
+  .cap:hover{background:var(--surface)}
+  .cap.sel{background:var(--surface);border-color:var(--border-hi)}
+  .cap.flagged{}
+  .cap .bar{
+    position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;
+    background:transparent;transition:background .12s;
+  }
+  .cap.flagged .bar{background:var(--flag)}
+  .cap .idx{
+    font-family:var(--mono);font-size:10px;color:var(--text-muted);
+    padding-top:3px;min-width:16px;text-align:right;user-select:none;
+  }
+  .cap .body{flex:1;min-width:0}
+  .cap .tc{
+    font-family:var(--mono);font-size:10px;color:var(--text-dim);
+    margin-bottom:4px;letter-spacing:.02em;
+  }
+  .cap .tc .arr{color:var(--text-muted);margin:0 5px}
+  .cap .txt{
+    font-size:13px;line-height:1.5;color:var(--text);outline:none;
+    border-radius:var(--r-sm);word-break:break-word;
+  }
+  .cap .txt:focus{box-shadow:0 0 0 2px var(--accent-dim);background:var(--bg);padding:2px 5px;margin:-2px -5px}
+  .cap .row-actions{
+    display:flex;gap:2px;align-self:flex-start;opacity:0;transition:opacity .1s;
+    padding-top:1px;
+  }
+  .cap:hover .row-actions,.cap.sel .row-actions{opacity:1}
+  .mini{
+    width:24px;height:24px;display:grid;place-items:center;border-radius:var(--r-sm);
+    background:transparent;border:none;color:var(--text-muted);cursor:pointer;transition:all .1s;
+  }
+  .mini svg{width:14px;height:14px}
+  .mini:hover{background:var(--surface-hi);color:var(--text)}
+  .mini.flag:hover{color:var(--flag)}
+  .mini.del:hover{color:var(--danger)}
+  .cap.flagged .mini.flag{color:var(--flag)}
+  /* ---- empty state ---- */
+  .empty{
+    height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;color:var(--text-dim);text-align:center;padding:30px;
+  }
+  .empty svg{width:38px;height:38px;color:var(--text-muted)}
+  .empty p{font-size:13px;max-width:230px;line-height:1.5}
+  /* ---- status bar ---- */
+  .status{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 14px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--text-dim);background:var(--surface);
+  }
+  .status .hint{color:var(--text-muted)}
+  .status .demo-tag{
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent);border:1px solid var(--accent);opacity:.8;
+    padding:2px 6px;border-radius:999px;
+  }
+  /* ---- toast ---- */
+  .toast-wrap{
+    position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
+    display:flex;flex-direction:column;gap:8px;align-items:center;
+    pointer-events:none;z-index:50;
+  }
+  .toast{
+    display:flex;align-items:center;gap:9px;
+    background:#06294a;border:1px solid var(--border-hi);
+    padding:9px 14px;border-radius:999px;font-size:12.5px;color:var(--text);
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+    opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateY(0)}
+  .toast .tdot{width:8px;height:8px;border-radius:50%;background:var(--text-dim);flex:none}
+  .toast.ok .tdot{background:var(--success)}
+  .toast.err .tdot{background:var(--danger)}
+</style>
+</head>
+<body>
+  <div class="panel" id="panel">
+    <div class="toolbar">
+      <div class="brand"><span class="dot"></span><span class="wm">CutCap</span></div>
+      <button class="iconbtn" id="btnImport" title="Import captions" aria-label="Import captions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+      </button>
+      <span class="spacer"></span>
+      <button class="iconbtn" id="btnUndo" title="Undo" aria-label="Undo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
+      </button>
+      <button class="iconbtn" id="btnRedo" title="Redo" aria-label="Redo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg>
+      </button>
+      <span class="divider"></span>
+      <button class="iconbtn" id="btnExport" title="Export .srt" aria-label="Export SRT">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg>
+      </button>
+      <button class="btn accent" id="btnPush" title="Push captions to the timeline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+        Push
+      </button>
+    </div>
+
+    <div class="list" id="list"></div>
+
+    <div class="status">
+      <span id="count">0 captions</span>
+      <span class="hint" id="hint">Click a line to edit</span>
+      <span class="demo-tag">Live demo</span>
+    </div>
+
+    <div class="toast-wrap" id="toasts"></div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- sample data (doubles as a mini tutorial) ---------- */
+  function seed(){
+    return [
+      {t:"Welcome to CutCap.", a:0,      b:2400},
+      {t:"Edit your captions right inside Premiere Pro.", a:2400, b:5200},
+      {t:"Click any line to fix a word.", a:5200, b:7600},
+      {t:"Split a long caption with the scissors, or flag one to revisit.", a:7600, b:11000},
+      {t:"Undo and redo have your back.", a:11000, b:13200},
+      {t:"Then push them straight back to your timeline.", a:13200, b:15600}
+    ].map(function(c,i){ return {id:uid(), text:c.t, start:c.a, end:c.b, flagged:false}; });
+  }
+
+  var _n=0; function uid(){ return "c"+(++_n)+"_"+Math.random().toString(36).slice(2,6); }
+
+  var caps = seed();
+  var selId = null;
+  var dirty = false;
+  var undoStack = [], redoStack = [];
+
+  var listEl   = document.getElementById('list');
+  var countEl  = document.getElementById('count');
+  var hintEl   = document.getElementById('hint');
+  var toastsEl = document.getElementById('toasts');
+  var btnUndo  = document.getElementById('btnUndo');
+  var btnRedo  = document.getElementById('btnRedo');
+  var btnPush  = document.getElementById('btnPush');
+  var btnExport= document.getElementById('btnExport');
+
+  /* ---------- helpers ---------- */
+  function clone(a){ return a.map(function(c){ return {id:c.id,text:c.text,start:c.start,end:c.end,flagged:c.flagged}; }); }
+  function fmt(ms){
+    var h=Math.floor(ms/3600000), m=Math.floor(ms%3600000/60000),
+        s=Math.floor(ms%60000/1000), mm=Math.floor(ms%1000);
+    function p(n,w){ n=""+n; while(n.length<w) n="0"+n; return n; }
+    return p(h,2)+":"+p(m,2)+":"+p(s,2)+","+p(mm,3);
+  }
+  function esc(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ---------- history ---------- */
+  function snapshot(){ undoStack.push(clone(caps)); if(undoStack.length>60) undoStack.shift(); redoStack.length=0; dirty=true; }
+  function undo(){ if(!undoStack.length) return; redoStack.push(clone(caps)); caps=undoStack.pop(); selId=null; render(); toast("Undo",'ok'); }
+  function redo(){ if(!redoStack.length) return; undoStack.push(clone(caps)); caps=redoStack.pop(); selId=null; render(); toast("Redo",'ok'); }
+
+  /* ---------- mutations ---------- */
+  function commitText(id, txt){
+    var c = find(id); if(!c) return;
+    txt = txt.replace(/\s+/g,' ').trim();
+    if(txt === c.text) return;
+    snapshot();
+    if(txt === ""){ // empty edit == delete (CutCap rule)
+      caps = caps.filter(function(x){return x.id!==id;});
+      render(); toast("Line deleted",'ok'); return;
+    }
+    c.text = txt; render();
+  }
+  function delCap(id){ snapshot(); caps = caps.filter(function(c){return c.id!==id;}); if(selId===id) selId=null; render(); toast("Line deleted",'ok'); }
+  function flagCap(id){ var c=find(id); if(!c) return; snapshot(); c.flagged=!c.flagged; render(); }
+  function splitCap(id){
+    var i = caps.findIndex(function(c){return c.id===id;}); if(i<0) return;
+    var c = caps[i], words = c.text.split(' ');
+    if(words.length<2){ toast("Line is too short to split",'err'); return; }
+    snapshot();
+    var mid = Math.round(words.length/2);
+    var t1 = words.slice(0,mid).join(' '), t2 = words.slice(mid).join(' ');
+    var frac = t1.length/(t1.length+t2.length);
+    var midMs = Math.round(c.start + (c.end-c.start)*frac);
+    var a = {id:uid(), text:t1, start:c.start, end:midMs, flagged:c.flagged};
+    var b = {id:uid(), text:t2, start:midMs, end:c.end, flagged:false};
+    caps.splice(i,1,a,b); selId=b.id; render(); toast("Caption split",'ok');
+  }
+  function find(id){ for(var i=0;i<caps.length;i++) if(caps[i].id===id) return caps[i]; return null; }
+
+  /* ---------- toolbar actions ---------- */
+  function doImport(){
+    var run = function(){ caps = seed(); selId=null; undoStack.length=0; redoStack.length=0; dirty=false; render(); toast("Imported demo.srt",'ok'); };
+    if(dirty){ toast("Changes saved",'ok'); setTimeout(run,1100); } else { run(); }
+  }
+  function doExport(){ if(!caps.length) return; toast("Exported "+caps.length+" captions to SRT",'ok'); }
+  function doPush(){ if(!caps.length) return; toast("Pushed "+caps.length+" captions to the timeline",'ok'); dirty=false; }
+
+  /* ---------- toast ---------- */
+  function toast(msg, kind){
+    var el = document.createElement('div');
+    el.className = 'toast '+(kind||'');
+    el.innerHTML = '<span class="tdot"></span>'+esc(msg);
+    toastsEl.appendChild(el);
+    requestAnimationFrame(function(){ el.classList.add('show'); });
+    setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); }, 240); }, 2500);
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    // toolbar state
+    btnUndo.disabled = !undoStack.length;
+    btnRedo.disabled = !redoStack.length;
+    btnPush.disabled = !caps.length;
+    btnExport.disabled = !caps.length;
+    countEl.textContent = caps.length + (caps.length===1?" caption":" captions");
+
+    if(!caps.length){
+      listEl.innerHTML =
+        '<div class="empty">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h4M7 14h7"/></svg>'+
+        '<p>No captions yet. Hit the import button to load a sample.</p>'+
+        '</div>';
+      return;
+    }
+
+    var html = '';
+    caps.forEach(function(c, i){
+      var sel = c.id===selId ? ' sel' : '';
+      var fl  = c.flagged ? ' flagged' : '';
+      html +=
+        '<div class="cap'+sel+fl+'" data-id="'+c.id+'">'+
+          '<span class="bar"></span>'+
+          '<span class="idx">'+(i+1)+'</span>'+
+          '<div class="body">'+
+            '<div class="tc">'+fmt(c.start)+'<span class="arr">&rarr;</span>'+fmt(c.end)+'</div>'+
+            '<div class="txt" contenteditable="true" spellcheck="false" data-id="'+c.id+'">'+esc(c.text)+'</div>'+
+          '</div>'+
+          '<div class="row-actions">'+
+            '<button class="mini flag" data-act="flag" data-id="'+c.id+'" title="Flag">'+
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h13l-2 4 2 4H4"/></svg></button>'+
+            '<button class="mini split" data-act="split" data-id="'+c.id+'" title="Split at middle">'+
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8.5 20 20M8.5 15.5 20 4"/></svg></button>'+
+            '<button class="mini del" data-act="del" data-id="'+c.id+'" title="Delete">'+
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>'+
+          '</div>'+
+        '</div>';
+    });
+    listEl.innerHTML = html;
+  }
+
+  /* ---------- events (delegated) ---------- */
+  listEl.addEventListener('click', function(e){
+    var b = e.target.closest('.mini');
+    if(b){ e.preventDefault();
+      var id=b.getAttribute('data-id'), act=b.getAttribute('data-act');
+      if(act==='flag') flagCap(id);
+      else if(act==='split') splitCap(id);
+      else if(act==='del') delCap(id);
+      return;
+    }
+    var cap = e.target.closest('.cap');
+    if(cap){ selId = cap.getAttribute('data-id');
+      // reflect selection without nuking the caret if clicking the text
+      Array.prototype.forEach.call(listEl.querySelectorAll('.cap'), function(el){
+        el.classList.toggle('sel', el.getAttribute('data-id')===selId);
+      });
+    }
+  });
+  // editing
+  listEl.addEventListener('focusin', function(e){
+    if(e.target.classList && e.target.classList.contains('txt')){
+      hintEl.textContent = "Enter to save · empty deletes the line";
+    }
+  });
+  listEl.addEventListener('focusout', function(e){
+    if(e.target.classList && e.target.classList.contains('txt')){
+      hintEl.textContent = "Click a line to edit";
+      commitText(e.target.getAttribute('data-id'), e.target.textContent);
+    }
+  });
+  listEl.addEventListener('keydown', function(e){
+    if(e.target.classList && e.target.classList.contains('txt') && e.key==='Enter'){
+      e.preventDefault(); e.target.blur();
+    }
+  });
+
+  document.getElementById('btnImport').addEventListener('click', doImport);
+  btnExport.addEventListener('click', doExport);
+  btnPush.addEventListener('click', doPush);
+  btnUndo.addEventListener('click', undo);
+  btnRedo.addEventListener('click', redo);
+
+  // global-ish undo/redo shortcuts inside the demo
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); }
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

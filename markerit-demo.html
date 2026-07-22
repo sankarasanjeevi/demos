@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markerit — live demo</title>
+<style>
+  /* ---- Markerit deep-navy theme tokens (mirrors the real panel) ---- */
+  :root{
+    --bg:#000f1f; --surface:#04203a; --surface-hi:#0a2c4d;
+    --border:#123a5c; --border-hi:#1c4d78;
+    --text:#d6e6f5; --text-dim:#7d97b0; --text-muted:#42607d;
+    --accent:#f03d13; --accent-hi:#ff5a34; --accent-dim:rgba(240,61,19,.16);
+    --danger:#ed1515; --flag:#ed7e15; --success:#35c07a;
+    --r-sm:4px; --r-md:8px; --r-lg:12px;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'SFMono-Regular',ui-monospace,'Menlo','Consolas',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%}
+  body{
+    font-family:var(--font);font-size:13px;color:var(--text);
+    background:transparent;
+    display:flex;align-items:center;justify-content:center;
+    padding:14px;
+  }
+  /* ---- panel shell ---- */
+  .panel{
+    width:100%;max-width:452px;height:588px;
+    background:var(--bg);
+    border:1px solid var(--border);border-radius:var(--r-lg);
+    box-shadow:0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.02) inset;
+    display:flex;flex-direction:column;overflow:hidden;position:relative;
+  }
+  /* ---- toolbar ---- */
+  .toolbar{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 12px;border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,var(--surface),var(--bg));
+  }
+  .brand{display:flex;align-items:center;gap:7px;margin-right:2px}
+  .brand .dot{width:8px;height:8px;border-radius:2px;background:var(--accent)}
+  .brand .wm{font-weight:700;letter-spacing:-.01em;font-size:13.5px}
+  .spacer{flex:1}
+  .iconbtn{
+    width:30px;height:30px;display:grid;place-items:center;
+    background:transparent;border:1px solid transparent;border-radius:var(--r-sm);
+    color:var(--text-dim);cursor:pointer;transition:all .12s;
+  }
+  .iconbtn:hover{background:var(--surface-hi);color:var(--text);border-color:var(--border)}
+  .iconbtn:disabled{opacity:.32;cursor:not-allowed}
+  .iconbtn:disabled:hover{background:transparent;color:var(--text-dim);border-color:transparent}
+  .iconbtn svg{width:16px;height:16px}
+  /* ---- body ---- */
+  .body{flex:1;overflow-y:auto;padding:12px 12px 16px;display:flex;flex-direction:column;gap:14px}
+  .body::-webkit-scrollbar{width:9px}
+  .body::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;border:2px solid var(--bg)}
+  .body::-webkit-scrollbar-thumb:hover{background:var(--border-hi)}
+
+  /* ---- mock timeline ---- */
+  .tl-wrap{display:flex;flex-direction:column;gap:6px}
+  .tl-head{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-dim)}
+  .tl-head .pos{font-family:var(--mono);color:var(--text)}
+  .timeline{
+    position:relative;height:104px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-md);
+    padding:20px 12px 12px;cursor:pointer;user-select:none;overflow:hidden;
+  }
+  /* ruler ticks */
+  .ruler{position:absolute;left:12px;right:12px;top:16px;height:9px}
+  .tick{position:absolute;top:0;width:1px;height:6px;background:var(--border-hi)}
+  .tick .lbl{position:absolute;top:8px;left:2px;font-family:var(--mono);font-size:8.5px;color:var(--text-muted);white-space:nowrap}
+  /* sequence marker rail baseline */
+  .seq-rail{position:absolute;left:12px;right:12px;top:34px;height:1px;background:var(--border)}
+  /* clip band */
+  .clip{
+    position:absolute;left:12px;right:12px;top:60px;height:30px;border-radius:5px;
+    background:linear-gradient(180deg,#0f3355,#0a2744);
+    border:1px solid var(--border-hi);
+    display:flex;align-items:center;padding-left:9px;
+  }
+  .clip .clip-name{font-size:10px;color:var(--text-dim);font-weight:600;letter-spacing:.02em}
+  /* playhead */
+  .playhead{position:absolute;top:12px;bottom:10px;width:2px;background:var(--accent);pointer-events:none;z-index:6}
+  .playhead::before{
+    content:"";position:absolute;top:-2px;left:-4px;width:10px;height:8px;
+    background:var(--accent);clip-path:polygon(0 0,100% 0,50% 100%);
+  }
+  /* markers */
+  .mk{position:absolute;z-index:4;transform:translateX(-50%);pointer-events:none}
+  .mk .stem{position:absolute;left:50%;width:2px;transform:translateX(-50%);background:currentColor;opacity:.85}
+  .mk .flag{
+    position:absolute;left:50%;transform:translateX(-50%);
+    width:13px;height:13px;border-radius:3px;border:1.5px solid rgba(0,0,0,.35);
+    display:grid;place-items:center;font-family:var(--mono);font-size:8px;font-weight:700;color:rgba(0,0,0,.65);
+    box-shadow:0 1px 4px rgba(0,0,0,.4);
+  }
+  .mk.seq{top:20px;color:inherit}
+  .mk.seq .stem{top:13px;height:15px}
+  .mk.seq .flag{top:0}
+  .mk.clip{top:60px;color:inherit}
+  .mk.clip .stem{top:0;height:0}
+  .mk.clip .flag{top:9px}
+
+  /* ---- swatch grid ---- */
+  .sec-label{font-size:11px;color:var(--text-dim);font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+  .scope-toggle{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-left:auto}
+  .scope-toggle button{
+    background:transparent;border:none;color:var(--text-dim);font-family:var(--font);
+    font-size:10.5px;font-weight:600;padding:3px 11px;cursor:pointer;transition:all .12s;
+  }
+  .scope-toggle button.on{background:var(--accent-dim);color:var(--accent-hi)}
+  .swatch-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .swatch{
+    display:flex;align-items:center;gap:9px;padding:7px 9px;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+    cursor:pointer;transition:background .1s,border-color .1s,transform .05s;
+  }
+  .swatch:hover{background:var(--surface-hi);border-color:var(--border-hi)}
+  .swatch:active{transform:scale(.98)}
+  .swatch .chip{width:15px;height:15px;border-radius:4px;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.35) inset}
+  .swatch .name{flex:1;font-size:12px;color:var(--text)}
+  .swatch .idx{font-family:var(--mono);font-size:9.5px;color:var(--text-muted)}
+
+  /* ---- delete actions ---- */
+  .actions{display:flex;flex-wrap:wrap;gap:7px}
+  .btn-action{
+    flex:1;min-width:calc(50% - 4px);text-align:center;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);
+    color:var(--text-dim);font-family:var(--font);font-size:11px;font-weight:600;
+    padding:7px 8px;cursor:pointer;transition:all .12s;
+  }
+  .btn-action:hover{background:#2a0f0a;border-color:var(--danger);color:#ff9a86}
+  .btn-action:disabled{opacity:.34;cursor:not-allowed}
+  .btn-action:disabled:hover{background:var(--surface);border-color:var(--border);color:var(--text-dim)}
+
+  /* ---- legend ---- */
+  .legend{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+    padding:9px 11px;font-size:11px;color:var(--text-dim);line-height:1.6;
+  }
+  .legend .k{
+    font-family:var(--mono);font-size:9.5px;background:var(--surface-hi);
+    border:1px solid var(--border-hi);border-radius:3px;padding:1px 5px;color:var(--text);margin-right:6px;
+  }
+  .legend .row{display:flex;align-items:center;gap:4px}
+  /* ---- status ---- */
+  .status{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 14px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--text-dim);background:var(--surface);
+  }
+  .status .demo-tag{
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent);border:1px solid var(--accent);opacity:.8;
+    padding:2px 6px;border-radius:999px;
+  }
+  /* ---- toast ---- */
+  .toast-wrap{
+    position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
+    display:flex;flex-direction:column;gap:8px;align-items:center;
+    pointer-events:none;z-index:50;
+  }
+  .toast{
+    display:flex;align-items:center;gap:9px;
+    background:#06294a;border:1px solid var(--border-hi);
+    padding:9px 14px;border-radius:999px;font-size:12.5px;color:var(--text);
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+    opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateY(0)}
+  .toast .tdot{width:8px;height:8px;border-radius:50%;background:var(--text-dim);flex:none}
+  .toast.ok .tdot{background:var(--success)}
+  .toast.err .tdot{background:var(--danger)}
+</style>
+</head>
+<body>
+  <div class="panel" id="panel">
+    <div class="toolbar">
+      <div class="brand"><span class="dot"></span><span class="wm">Markerit</span></div>
+      <span class="spacer"></span>
+      <button class="iconbtn" id="btnUndo" title="Undo" aria-label="Undo" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
+      </button>
+      <button class="iconbtn" id="btnRedo" title="Redo" aria-label="Redo" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg>
+      </button>
+    </div>
+
+    <div class="body">
+      <!-- mock timeline -->
+      <div class="tl-wrap">
+        <div class="tl-head">
+          <span>Timeline</span>
+          <span class="pos">Playhead <span id="phPos">00:04.00</span></span>
+        </div>
+        <div class="timeline" id="timeline">
+          <div class="ruler" id="ruler"></div>
+          <div class="seq-rail"></div>
+          <div class="clip"><span class="clip-name">interview_A.mp4</span></div>
+          <div class="playhead" id="playhead" style="left:12px"></div>
+          <!-- markers injected -->
+        </div>
+      </div>
+
+      <!-- swatches -->
+      <div class="sec-label">
+        Marker color
+        <span class="scope-toggle" id="scopeToggle">
+          <button data-scope="sequence" class="on">Sequence</button>
+          <button data-scope="clip">Clip</button>
+        </span>
+      </div>
+      <div class="swatch-grid" id="swatches"></div>
+
+      <!-- delete actions -->
+      <div class="actions">
+        <button class="btn-action" id="delAtPlayhead">Delete marker at playhead</button>
+        <button class="btn-action" id="delAll">Delete all in scope</button>
+      </div>
+
+      <!-- legend -->
+      <div class="legend">
+        <div class="row"><span class="k">Click track</span> move the playhead</div>
+        <div class="row"><span class="k">Click swatch</span> drop a marker at the playhead</div>
+        <div class="row"><span class="k">Ctrl + swatch</span> add a clip marker (vs sequence)</div>
+      </div>
+    </div>
+
+    <div class="status">
+      <span id="count">0 markers</span>
+      <span class="demo-tag">Live demo</span>
+    </div>
+
+    <div class="toast-wrap" id="toasts"></div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- marker palette (mirrors the real Markerit MARKER_COLORS) ---------- */
+  var COLORS = [
+    {index:0, name:'Green',  hex:'#5FCB5F'},
+    {index:1, name:'Red',    hex:'#FF4D4D'},
+    {index:2, name:'Purple', hex:'#B36FE0'},
+    {index:3, name:'Orange', hex:'#FF9F45'},
+    {index:4, name:'Yellow', hex:'#F5E14B'},
+    {index:5, name:'White',  hex:'#E8E8E8'},
+    {index:6, name:'Blue',   hex:'#5B8DEF'},
+    {index:7, name:'Cyan',   hex:'#4FD4D4'}
+  ];
+
+  var DUR = 20000;            // mock timeline length (ms)
+  var phMs = 4000;            // playhead position
+  var scope = 'sequence';     // 'sequence' | 'clip'
+  var markers = [];           // {id, index, ms, scope}
+  var undoStack = [], redoStack = [];
+  var _n = 0;
+  function uid(){ return "m"+(++_n); }
+
+  var timelineEl = document.getElementById('timeline');
+  var rulerEl    = document.getElementById('ruler');
+  var playheadEl = document.getElementById('playhead');
+  var phPosEl    = document.getElementById('phPos');
+  var swatchesEl = document.getElementById('swatches');
+  var countEl    = document.getElementById('count');
+  var toastsEl   = document.getElementById('toasts');
+  var btnUndo    = document.getElementById('btnUndo');
+  var btnRedo    = document.getElementById('btnRedo');
+  var delAtPh    = document.getElementById('delAtPlayhead');
+  var delAll     = document.getElementById('delAll');
+
+  /* ---------- helpers ---------- */
+  function clone(a){ return a.map(function(m){ return {id:m.id,index:m.index,ms:m.ms,scope:m.scope}; }); }
+  function color(idx){ for(var i=0;i<COLORS.length;i++) if(COLORS[i].index===idx) return COLORS[i]; return COLORS[0]; }
+  function fmt(ms){
+    var s=Math.floor(ms/1000), mm=Math.floor(ms%1000/10);
+    function p(n,w){ n=""+n; while(n.length<w) n="0"+n; return n; }
+    return p(Math.floor(s/60),2)+":"+p(s%60,2)+"."+p(mm,2);
+  }
+  function esc(t){ return (""+t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ---------- history ---------- */
+  function snapshot(){ undoStack.push(clone(markers)); if(undoStack.length>60) undoStack.shift(); redoStack.length=0; }
+  function undo(){ if(!undoStack.length) return; redoStack.push(clone(markers)); markers=undoStack.pop(); render(); toast("Undo",'ok'); }
+  function redo(){ if(!redoStack.length) return; undoStack.push(clone(markers)); markers=redoStack.pop(); render(); toast("Redo",'ok'); }
+
+  /* ---------- build the static swatch grid + ruler ---------- */
+  function buildSwatches(){
+    var html='';
+    COLORS.forEach(function(c){
+      html += '<div class="swatch" data-index="'+c.index+'" title="'+c.name+' marker">'
+           +    '<span class="chip" style="background:'+c.hex+'"></span>'
+           +    '<span class="name">'+c.name+'</span>'
+           +    '<span class="idx">'+c.index+'</span>'
+           +  '</div>';
+    });
+    swatchesEl.innerHTML = html;
+  }
+  function buildRuler(){
+    var html='';
+    for(var s=0; s<=DUR/1000; s+=5){
+      var pct = (s*1000)/DUR*100;
+      html += '<div class="tick" style="left:'+pct+'%"><span class="lbl">'+fmt(s*1000)+'</span></div>';
+    }
+    rulerEl.innerHTML = html;
+  }
+
+  /* ---------- actions ---------- */
+  function addMarker(idx){
+    snapshot();
+    markers.push({id:uid(), index:idx, ms:phMs, scope:scope});
+    render();
+    toast("Added "+color(idx).name+" "+scope+" marker",'ok');
+  }
+  function deleteAtPlayhead(){
+    // nearest marker in the active scope within ~600ms of the playhead
+    var best=-1, bestD=1e9;
+    markers.forEach(function(m,i){
+      if(m.scope!==scope) return;
+      var d=Math.abs(m.ms-phMs);
+      if(d<bestD){ bestD=d; best=i; }
+    });
+    if(best<0 || bestD>600){ toast("No "+scope+" marker under the playhead",'err'); return; }
+    snapshot();
+    markers.splice(best,1);
+    render();
+    toast("Deleted "+scope+" marker",'ok');
+  }
+  function deleteAllInScope(){
+    var has = markers.some(function(m){return m.scope===scope;});
+    if(!has){ toast("No "+scope+" markers to delete",'err'); return; }
+    snapshot();
+    markers = markers.filter(function(m){return m.scope!==scope;});
+    render();
+    toast("Cleared all "+scope+" markers",'ok');
+  }
+
+  /* ---------- toast ---------- */
+  function toast(msg, kind){
+    var el=document.createElement('div');
+    el.className='toast '+(kind||'');
+    el.innerHTML='<span class="tdot"></span>'+esc(msg);
+    toastsEl.appendChild(el);
+    requestAnimationFrame(function(){ el.classList.add('show'); });
+    setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); },240); },2200);
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    // playhead
+    var phPct = phMs/DUR*100;
+    playheadEl.style.left = 'calc(12px + (100% - 24px) * '+(phMs/DUR)+')';
+    phPosEl.textContent = fmt(phMs);
+
+    // remove old marker nodes
+    Array.prototype.forEach.call(timelineEl.querySelectorAll('.mk'), function(n){ n.remove(); });
+    // markers
+    markers.forEach(function(m){
+      var c=color(m.index);
+      var el=document.createElement('div');
+      el.className='mk '+(m.scope==='clip'?'clip':'seq');
+      el.style.color=c.hex;
+      el.style.left='calc(12px + (100% - 24px) * '+(m.ms/DUR)+')';
+      el.innerHTML='<span class="stem"></span><span class="flag" style="background:'+c.hex+'">'+m.index+'</span>';
+      timelineEl.appendChild(el);
+    });
+
+    // counts + button states
+    var n=markers.length;
+    countEl.textContent = n + (n===1?' marker':' markers');
+    btnUndo.disabled=!undoStack.length;
+    btnRedo.disabled=!redoStack.length;
+    var scopeHas = markers.some(function(m){return m.scope===scope;});
+    delAll.disabled=!scopeHas;
+    delAtPh.disabled=!scopeHas;
+  }
+
+  /* ---------- events ---------- */
+  // move playhead by clicking the track
+  timelineEl.addEventListener('click', function(e){
+    var r=timelineEl.getBoundingClientRect();
+    var x=e.clientX-r.left-12;
+    var w=r.width-24;
+    var frac=Math.max(0,Math.min(1,x/w));
+    phMs=Math.round(frac*DUR);
+    render();
+  });
+
+  // swatches — click = add at playhead; Ctrl = clip scope for that click
+  swatchesEl.addEventListener('click', function(e){
+    var sw=e.target.closest('.swatch'); if(!sw) return;
+    var idx=parseInt(sw.getAttribute('data-index'),10);
+    if(e.ctrlKey||e.metaKey){ setScope('clip'); }
+    addMarker(idx);
+  });
+
+  // scope toggle
+  function setScope(next){
+    scope=next;
+    Array.prototype.forEach.call(document.querySelectorAll('#scopeToggle button'), function(b){
+      b.classList.toggle('on', b.getAttribute('data-scope')===scope);
+    });
+    render();
+  }
+  document.getElementById('scopeToggle').addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    setScope(b.getAttribute('data-scope'));
+  });
+
+  delAtPh.addEventListener('click', deleteAtPlayhead);
+  delAll.addEventListener('click', deleteAllInScope);
+  btnUndo.addEventListener('click', undo);
+  btnRedo.addEventListener('click', redo);
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); }
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); }
+  });
+
+  /* ---------- init ---------- */
+  buildSwatches();
+  buildRuler();
+  // seed a couple of markers so the timeline isn't empty (doubles as a hint)
+  markers.push({id:uid(), index:0, ms:2500,  scope:'sequence'});
+  markers.push({id:uid(), index:1, ms:9000,  scope:'sequence'});
+  markers.push({id:uid(), index:6, ms:6000,  scope:'clip'});
+  render();
+})();
+</script>
+</body>
+</html>

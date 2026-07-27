@@ -1679,9 +1679,15 @@ body {
 html { height: 100% !important; overflow: hidden !important; }
 body { zoom: 1 !important; width: 100% !important; height: 100% !important;
        min-height: 0 !important; overflow: hidden !important; }
+/* height is 100%, NOT calc(100% / --ui-zoom). A percentage inside a zoomed
+   element already resolves in the ZOOMED coordinate space, so dividing by the
+   zoom applies it twice and the panel renders at 640/1.3 = 492px, leaving a
+   148px dead band under the cleanup bar. The division IS needed for vh units
+   (they ignore zoom) which is why the panel's own stylesheet uses
+   calc(100vh / var(--ui-zoom)) and this override must not copy that. */
 #app { zoom: var(--ui-zoom, 1) !important; transform: none !important;
-       height: calc(100% / var(--ui-zoom, 1)) !important;
-       max-height: calc(100% / var(--ui-zoom, 1)) !important;
+       height: 100% !important;
+       max-height: 100% !important;
        overflow: hidden !important; }
 .setting-row:has(#ui-size-slider)   { display: none !important; }
 .empty-state { min-height: 0 !important; justify-content: center !important; }

@@ -1679,6 +1679,34 @@ body {
 body { zoom: 1 !important; width: 100% !important; height: 100% !important; }
 #app { zoom: var(--ui-zoom, 1) !important; transform: none !important; }
 .setting-row:has(#ui-size-slider)   { display: none !important; }
+.empty-state { min-height: 380px !important; justify-content: center !important; }
+
+/* Demo notice dialog — built from the panel's own tokens so it tracks the
+   theme and the user's accent colour. */
+.demo-note-backdrop {
+  position: absolute; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+}
+.demo-note {
+  width: 340px; max-width: calc(100% - 32px);
+  background: var(--surface, #242424);
+  border: 1px solid var(--border, #333);
+  border-radius: 8px; padding: 18px;
+  font-size: 13px; color: var(--text, #d4d4d4);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+}
+.demo-note h4 {
+  margin: 0 0 8px; font-size: 14px; font-weight: 600;
+  color: var(--text, #d4d4d4);
+}
+.demo-note p { margin: 0 0 14px; line-height: 1.55; color: var(--text-dim, #888); }
+.demo-note .demo-note-cta {
+  display: block; width: 100%; padding: 8px 0;
+  border: 0; border-radius: 4px; cursor: pointer;
+  background: var(--accent, #f03d13); color: #fff;
+  font-size: 13px; font-weight: 600;
+}
 </style>
 
 <script>
@@ -6031,22 +6059,95 @@ document.addEventListener('DOMContentLoaded', function () {
    Only runs on the empty state, so a returning visitor's edits are kept. This is
    the ONLY code added on top of the shipping panel. */
 (function(){
-  var MAIN = [
-    "1","00:00:00,000 --> 00:00:02,400","Welcome to Subtext.","",
-    "2","00:00:02,400 --> 00:00:06,000","Click the slash between words to split a caption.","",
-    "3","00:00:06,000 --> 00:00:08,600","Double-click a word to fix it.","",
-    "4","00:00:08,600 --> 00:00:11,000","Flag a line to revisit it later.","",
-    "5","00:00:11,000 --> 00:00:13,200","Undo and redo have your back.","",
-    "6","00:00:13,200 --> 00:00:15,600","Then push them straight back to your timeline.",""
-  ].join("\n");
-  // Extra history entries (label + how long ago + a short caption body).
+  // Build an .srt from an array of lines, 2.4s per caption. Keeps the seed data
+  // readable and makes every session long enough to feel like real work.
+  function srt(lines){
+    var out = [], t = 0, step = 2400;
+    function tc(ms){
+      var h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000);
+      var s = Math.floor(ms%60000/1000), x = ms%1000;
+      function p(n,w){ n = String(n); while (n.length < w) n = '0' + n; return n; }
+      return p(h,2)+':'+p(m,2)+':'+p(s,2)+','+p(x,3);
+    }
+    for (var i = 0; i < lines.length; i++){
+      out.push(String(i+1), tc(t)+' --> '+tc(t+step), lines[i], '');
+      t += step;
+    }
+    return out.join("\n");
+  }
+
+  var MAIN = srt([
+    "Welcome to Subtext.",
+    "This is the real panel, running in your browser.",
+    "Click the slash between words to split a caption.",
+    "Double-click a word to fix just that word.",
+    "Double-click the empty area to edit the whole line.",
+    "The trailing slash merges a line into the next one.",
+    "Press F to flag a line for review later.",
+    "The up and down arrows walk through the list.",
+    "Undo and redo have your back at every step.",
+    "Find and Replace works across every caption at once.",
+    "The cleanup bar fixes the whole file in one pass.",
+    "Remove gaps, line breaks, or punctuation.",
+    "The accent colour and the theme are yours to set.",
+    "In Premiere, one button pushes all of this to your timeline.",
+    "Import and export are disabled here in the demo."
+  ]);
+
+  // Extra history entries (label + how long ago + a full-length caption body),
+  // so "Recent edits" looks like a real week of work rather than a stub.
   var EXTRAS = [
-    { label: "Podcast_ep12.srt",   ago: 18*60*1000,
-      srt: "1\n00:00:00,000 --> 00:00:03,000\nSo the big question this week\n\n2\n00:00:03,000 --> 00:00:06,000\nis how we scale the team." },
-    { label: "Interview_2cam.srt", ago: 3*60*60*1000,
-      srt: "1\n00:00:00,000 --> 00:00:02,500\nTell me about your process.\n\n2\n00:00:02,500 --> 00:00:05,500\nIt starts with a rough cut." },
-    { label: "Promo_teaser.srt",   ago: 27*60*60*1000,
-      srt: "1\n00:00:00,000 --> 00:00:02,000\nOne app. Zero friction.\n\n2\n00:00:02,000 --> 00:00:04,000\nEdit captions right in Premiere." }
+    { label: "Podcast_ep12.srt", ago: 18*60*1000, srt: srt([
+      "So the big question this week",
+      "is how we actually scale the team",
+      "without losing what makes it good.",
+      "And I think the honest answer",
+      "is that you cannot hire your way out of it.",
+      "You have to fix the process first.",
+      "Otherwise you are just adding people",
+      "to something that was already broken.",
+      "We learned that the hard way last year.",
+      "Three new editors in two months,",
+      "and the output actually went down.",
+      "Nobody knew who owned what.",
+      "So this time we wrote it all down first.",
+      "Boring, but it worked.",
+      "Next week we get into the numbers."
+    ])},
+    { label: "Interview_2cam.srt", ago: 3*60*60*1000, srt: srt([
+      "Tell me about your process.",
+      "It starts with a rough cut, always.",
+      "I never touch colour or sound",
+      "until the story actually holds up.",
+      "How long does that usually take?",
+      "On a short film, maybe two weeks.",
+      "On a commercial, two days if I am lucky.",
+      "And you cut on your own?",
+      "Mostly, yes. I like the quiet.",
+      "But I show it early to one person",
+      "who will tell me the truth.",
+      "That part matters more than the software.",
+      "Any advice for someone starting out?",
+      "Finish things. Even the bad ones.",
+      "You learn nothing from an unfinished cut."
+    ])},
+    { label: "Promo_teaser.srt", ago: 27*60*60*1000, srt: srt([
+      "One panel. Zero round trips.",
+      "Import the captions you already have.",
+      "Fix the wording where it matters.",
+      "Split a line exactly where it should break.",
+      "Merge the ones that were cut too short.",
+      "Flag anything you want to revisit.",
+      "Search and replace across the whole file.",
+      "Clean up the gaps in a single pass.",
+      "Watch it play back against your sequence.",
+      "Undo anything, at any point.",
+      "Then push it straight to the timeline.",
+      "No text editor. No re-importing.",
+      "No leaving Premiere at all.",
+      "Subtext. Captions, finished faster.",
+      "Available now for Windows and macOS."
+    ])}
   ];
   function seed(){
     var ec = document.getElementById('editor-container');
@@ -6068,14 +6169,81 @@ document.addEventListener('DOMContentLoaded', function () {
           localStorage.setItem('cutcap.sessions', JSON.stringify(list));
         } catch (e) {}
       }
-      // 2) main sample via the real import path -> becomes the active session
+      // 2) main sample via the real import path -> becomes the active session.
+      //    __demoSeeding lets this one synthetic drop through the guard below,
+      //    which otherwise blocks every real file drop.
+      window.__demoSeeding = true;
       var f  = new File([MAIN], 'demo.srt', { type: 'text/plain' });
       var dt = new DataTransfer(); dt.items.add(f);
       ec.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
-    } catch (e) {}
+      setTimeout(function(){ window.__demoSeeding = false; }, 300);
+    } catch (e) { window.__demoSeeding = false; }
   }
   if (document.readyState === 'complete') setTimeout(seed, 80);
   else window.addEventListener('load', function(){ setTimeout(seed, 80); });
+})();
+</script>
+
+<script>
+(function(){
+  var NOTES = {
+    'btn-import': ['Import captions',
+      'In the panel this opens your system file browser to pick an .srt, .vtt or .csv, and you can also drag one straight from Premiere\u2019s Project panel. This demo comes preloaded with a sample so you can try the editing.'],
+    'empty-import': ['Import captions',
+      'In the panel this opens your system file browser to pick an .srt, .vtt or .csv, and you can also drag one straight from Premiere\u2019s Project panel. This demo comes preloaded with a sample so you can try the editing.'],
+    'btn-export-srt': ['Export SRT',
+      'In the panel this saves your edited captions anywhere on your machine as a standard .srt file. Disabled in the demo.'],
+    'btn-push-premiere': ['Push to Premiere',
+      'In the panel this drops the captions onto a new caption track in your open sequence and files a versioned .srt copy in a Subtext bin, all without leaving Premiere. Disabled in the demo.'],
+    'btn-clear': ['Clear all captions',
+      'In the panel this empties the caption list in one step, and Undo brings every line back. Disabled in the demo so the sample stays put.']
+  };
+
+  function note(title, body){
+    var old = document.querySelector('.demo-note-backdrop');
+    if (old) old.remove();
+    var wrap = document.createElement('div');
+    wrap.className = 'demo-note-backdrop';
+    var box = document.createElement('div');
+    box.className = 'demo-note';
+    var h = document.createElement('h4'); h.textContent = title;
+    var p = document.createElement('p'); p.textContent = body;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'demo-note-cta'; b.textContent = 'Got it';
+    box.appendChild(h); box.appendChild(p); box.appendChild(b);
+    wrap.appendChild(box);
+    (document.getElementById('app') || document.body).appendChild(wrap);
+    function close(){ wrap.remove(); document.removeEventListener('keydown', esc, true); }
+    function esc(e){ if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+    b.addEventListener('click', close);
+    wrap.addEventListener('click', function(e){ if (e.target === wrap) close(); });
+    document.addEventListener('keydown', esc, true);
+    b.focus();
+  }
+
+  // Capture phase on document: runs before the panel's own handlers, so the real
+  // import/export/push never fires.
+  document.addEventListener('click', function(e){
+    var el = e.target && e.target.closest ? e.target.closest('button, a') : null;
+    if (!el || !el.id) return;
+    var n = NOTES[el.id];
+    if (!n) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    note(n[0], n[1]);
+  }, true);
+
+  // Real file drops are blocked too; the seed's one synthetic drop is let through.
+  ['dragover','drop'].forEach(function(type){
+    document.addEventListener(type, function(e){
+      if (window.__demoSeeding) return;
+      if (type === 'drop') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        note(NOTES['btn-import'][0], NOTES['btn-import'][1]);
+      }
+    }, true);
+  });
 })();
 </script>
 </body>

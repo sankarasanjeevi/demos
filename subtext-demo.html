@@ -6149,6 +6149,23 @@ document.addEventListener('DOMContentLoaded', function () {
       "Available now for Windows and macOS."
     ])}
   ];
+  // Drop the main sample through the panel's real import path.
+  // __demoSeeding lets this one synthetic drop past the guard, which otherwise
+  // blocks every file drop. Exposed so the guard can restore the sample if the
+  // list is ever emptied by some route the guard does not cover.
+  function dropMain(){
+    var ec = document.getElementById('editor-container');
+    if (!ec) return;
+    try {
+      window.__demoSeeding = true;
+      var f  = new File([MAIN], 'demo.srt', { type: 'text/plain' });
+      var dt = new DataTransfer(); dt.items.add(f);
+      ec.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    } catch (e) {}
+    setTimeout(function(){ window.__demoSeeding = false; }, 300);
+  }
+  window.__demoReseed = dropMain;
+
   function seed(){
     var ec = document.getElementById('editor-container');
     if (!ec) return;
@@ -6170,13 +6187,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) {}
       }
       // 2) main sample via the real import path -> becomes the active session.
-      //    __demoSeeding lets this one synthetic drop through the guard below,
-      //    which otherwise blocks every real file drop.
-      window.__demoSeeding = true;
-      var f  = new File([MAIN], 'demo.srt', { type: 'text/plain' });
-      var dt = new DataTransfer(); dt.items.add(f);
-      ec.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
-      setTimeout(function(){ window.__demoSeeding = false; }, 300);
+      dropMain();
     } catch (e) { window.__demoSeeding = false; }
   }
   if (document.readyState === 'complete') setTimeout(seed, 80);
@@ -6221,17 +6232,54 @@ document.addEventListener('DOMContentLoaded', function () {
     b.focus();
   }
 
+  function lineCount(){
+    return document.querySelectorAll('#editor-container [data-id]').length;
+  }
+
   // Capture phase on document: runs before the panel's own handlers, so the real
   // import/export/push never fires.
   document.addEventListener('click', function(e){
     var el = e.target && e.target.closest ? e.target.closest('button, a') : null;
-    if (!el || !el.id) return;
+    if (!el) return;
+
+    // Never let the list reach zero: the empty state is a dead end in a demo
+    // whose Import button is disabled, so blocking the LAST delete keeps the
+    // visitor from stranding themselves.
+    var del = el.closest('.delete-btn, [class*="delete"], [title*="Delete" i], [aria-label*="Delete" i]');
+    if (del && lineCount() <= 1) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      note('Delete a line',
+        'In the panel you can delete any line, including the last one, and Undo brings it straight back. The demo keeps one line so there is always something to play with.');
+      return;
+    }
+
+    if (!el.id) return;
     var n = NOTES[el.id];
     if (!n) return;
     e.preventDefault();
     e.stopImmediatePropagation();
     note(n[0], n[1]);
   }, true);
+
+  // Safety net. Blocking the delete button covers the obvious path, but a line
+  // can also disappear by clearing its text (the panel treats an emptied line as
+  // a delete). If the list ever does hit zero, put the sample back rather than
+  // leave the visitor staring at a drop zone that cannot accept a file.
+  window.addEventListener('load', function(){
+    var ec = document.getElementById('editor-container');
+    if (!ec || typeof MutationObserver === 'undefined') return;
+    var restoring = false;
+    new MutationObserver(function(){
+      if (restoring || window.__demoSeeding) return;
+      if (lineCount() !== 0) return;
+      restoring = true;
+      setTimeout(function(){
+        try { if (typeof window.__demoReseed === 'function') window.__demoReseed(); } catch (e) {}
+        restoring = false;
+      }, 60);
+    }).observe(ec, { childList: true, subtree: true });
+  });
 
   // Real file drops are blocked too; the seed's one synthetic drop is let through.
   ['dragover','drop'].forEach(function(type){

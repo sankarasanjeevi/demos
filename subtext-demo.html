@@ -6281,6 +6281,51 @@ document.addEventListener('DOMContentLoaded', function () {
     }).observe(ec, { childList: true, subtree: true });
   });
 
+  // THEME BRIDGE — follow the host site's light/dark mode.
+  // The demo is cross-origin inside the marketing site, so the parent cannot
+  // touch this DOM. It posts {type:'tn-theme', mode} instead, and we apply it
+  // exactly the way the panel's own Settings toggle does: stamp data-theme on
+  // <html>, persist it, then re-run the accent derivation (its wash alphas and
+  // match-text colour are theme-aware, so skipping that step leaves the accent
+  // tuned for the wrong background).
+  function setTheme(mode){
+    try {
+      if (mode === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      else document.documentElement.removeAttribute('data-theme');
+      if (typeof CutCapStore !== 'undefined' && CutCapStore.setTheme) CutCapStore.setTheme(mode);
+      if (typeof CutCapTheme !== 'undefined') CutCapTheme.apply(CutCapTheme.get());
+    } catch (e) {}
+    // Keep Settings' Dark/Light segmented control honest, best-effort.
+    try {
+      var seg = document.getElementById('theme-mode');
+      if (seg) {
+        var btns = seg.querySelectorAll('.segmented-btn');
+        for (var i = 0; i < btns.length; i++) {
+          var v = (btns[i].getAttribute('data-value') || btns[i].textContent || '').trim().toLowerCase();
+          if (v === 'light' || v === 'dark') btns[i].classList.toggle('active', v === mode);
+        }
+      }
+    } catch (e) {}
+  }
+
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || d.type !== 'tn-theme') return;
+    setTheme(d.mode === 'light' ? 'light' : 'dark');
+  });
+
+  // Tell the host we exist so it can send the current theme. Also covers the
+  // case where the parent's listener attached before this frame finished.
+  function ready(){
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'tn-demo-ready' }, '*');
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === 'complete') ready();
+  else window.addEventListener('load', ready);
+
   // Real file drops are blocked too; the seed's one synthetic drop is let through.
   ['dragover','drop'].forEach(function(type){
     document.addEventListener(type, function(e){

@@ -1676,10 +1676,15 @@ body {
 </style>
 
 <style>
-body { zoom: 1 !important; width: 100% !important; height: 100% !important; }
-#app { zoom: var(--ui-zoom, 1) !important; transform: none !important; }
+html { height: 100% !important; overflow: hidden !important; }
+body { zoom: 1 !important; width: 100% !important; height: 100% !important;
+       min-height: 0 !important; overflow: hidden !important; }
+#app { zoom: var(--ui-zoom, 1) !important; transform: none !important;
+       height: calc(100% / var(--ui-zoom, 1)) !important;
+       max-height: calc(100% / var(--ui-zoom, 1)) !important;
+       overflow: hidden !important; }
 .setting-row:has(#ui-size-slider)   { display: none !important; }
-.empty-state { min-height: 380px !important; justify-content: center !important; }
+.empty-state { min-height: 0 !important; justify-content: center !important; }
 
 /* Demo notice dialog — built from the panel's own tokens so it tracks the
    theme and the user's accent colour. */

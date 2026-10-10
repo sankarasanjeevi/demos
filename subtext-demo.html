@@ -287,7 +287,23 @@ body {
   transition: outline 0.1s;
 }
 
-.editor-container.drag-over {
+/* Drop-target outline, shown while a caption file is dragged over the panel.
+   The class is set from a dragover-keyed timer and NEVER from dragleave — see
+   the drag handlers in the panel controller for why (issue #8).
+
+   ⚠️ The :focus selector is NOT redundant — without it this outline never paints
+   on a panel that has captions. `.editor-container:focus { outline: none }` further
+   down this file has the SAME specificity (0,2,0) as a bare `.editor-container.drag-over`
+   and comes later, so it won the cascade and killed the outline. `outline-offset`
+   survived, because that rule doesn't declare it, which is the exact fingerprint:
+   measured focused vs blurred with the class on = `0px none` vs `2px dashed`.
+   The editor is focused nearly always (every import and session restore ends in
+   editorContainer.focus()), so with captions loaded the highlight never appeared,
+   while an empty panel still looked right — its highlight comes from the
+   .empty-state border/background below, which `outline: none` cannot touch.
+   That asymmetry is what made this read as an event-handling bug twice. */
+.editor-container.drag-over,
+.editor-container.drag-over:focus {
   outline:        2px dashed var(--accent);
   outline-offset: -4px;
 }
@@ -311,6 +327,8 @@ body {
   pointer-events:  none;
 }
 
+/* On an empty panel the dashed empty-state box IS the drop target, so light it
+   up instead of stacking a second dashed outline around the same area. */
 .editor-container.drag-over .empty-state {
   border-color: var(--accent);
   background:   var(--accent-dim);
@@ -1715,9 +1733,34 @@ body { zoom: 1 !important; width: 100% !important; height: 100% !important;
 .demo-note .demo-note-cta {
   display: block; width: 100%; padding: 8px 0;
   border: 0; border-radius: 4px; cursor: pointer;
-  background: var(--accent, #f03d13); color: #fff;
+  background: var(--accent, #f03d13); color: var(--on-accent, #fff);
   font-size: 13px; font-weight: 600;
 }
+</style>
+
+<script>
+try {
+  if (/[?&]skin=portfolio\b/.test(location.search)) document.documentElement.setAttribute('data-skin', 'portfolio');
+} catch (e) {}
+</script>
+<style>
+html[data-skin="portfolio"], html[data-skin="portfolio"] body { background: #0a1a26; }
+html[data-skin="portfolio"][data-theme="light"], html[data-skin="portfolio"][data-theme="light"] body { background: #e2f1fa; }
+html[data-skin="portfolio"] {
+  --bg: #0a1a26; --surface: #0e2230; --surface-hi: #1e303c;
+  --border: #22404f; --border-hi: #3d6278;
+  --text: #c4e4f5; --text-dim: #8cafc6; --text-muted: #5f8199; --text-time: #a9cde2;
+  --text-bright: #ffffff;
+  --radius: 0px; --radius-lg: 0px;
+}
+html[data-skin="portfolio"][data-theme="light"] {
+  --bg: #e2f1fa; --surface: #f1f9fe; --surface-hi: #d0e9f8;
+  --border: #badef3; --border-hi: #46a0d6;
+  --text: #0d476e; --text-dim: #628ca8; --text-muted: #8fb0c6; --text-time: #2a5f84;
+  --text-bright: #0a2d46;
+}
+html[data-skin="portfolio"] .demo-note { border-radius: 0; }
+html[data-skin="portfolio"] .demo-note .demo-note-cta { border-radius: 0; }
 </style>
 
 <script>
@@ -4655,6 +4698,32 @@ document.addEventListener('DOMContentLoaded', function () {
     activeSessionId = CutCapStore.create('Untitled', captions).id
   }
 
+  // ── Playback priming (native transport + QE player) ──
+  //
+  // Both halves are VISIBLE in the Program Monitor: ppArmTransport switches
+  // sequences and ppWarmup actually plays. They are one-time initialization
+  // (C1/C2), so re-running them on every import flashed a line of caption text
+  // at the user every single time (issue #8 bug 3).
+  //
+  // The guard lives HERE, panel-side, and not in the host script. A first
+  // attempt kept the "already primed" flag in a hostscript global and priming
+  // still ran every time — host-global persistence across evalScript calls is
+  // UNPROVEN in this codebase (nothing else relies on it) and A4 only promises
+  // the file is *evaluated* once, which is a different claim. This JS context
+  // provably persists: it already holds activeSessionId, the undo stack and the
+  // session store. Keyed on sequence ID so a real sequence change re-primes.
+  var primedSeqId = null
+
+  function primeIfNeeded() {
+    CutCapCEP.evalScript('ppActiveSeqID()', function (res) {
+      var id = String(res == null ? '' : res)
+      if (!id || id === '-1' || id === 'null' || id.indexOf('EvalScript') === 0) return
+      if (id === primedSeqId) return
+      primedSeqId = id
+      CutCapCEP.evalScript('ppPrimeNow()')
+    })
+  }
+
   // On launch, reopen the last session the user was editing.
   function restoreLastSession() {
     var entry = CutCapStore.getActive()
@@ -4664,8 +4733,14 @@ document.addEventListener('DOMContentLoaded', function () {
     editor.loadCaptions(entry.captions)
     clearDirty()
     editorContainer.focus()
-    CutCapCEP.evalScript('ppArmTransport()')
-    CutCapCEP.evalScript('ppWarmup()')
+    // Deliberately NOT primed here. Restoring a session only repopulates the
+    // panel's editor — it puts nothing into the sequence, so there is nothing
+    // to arm the transport for. Priming is visible (ppArmTransport switches
+    // sequences, ppWarmup plays), and because the guard below is panel-side it
+    // is cold on every panel launch, so priming here billed the user a Program
+    // Monitor flash every single time they opened the panel and clicked
+    // "Reopen previous" — measured in CEP12-PPRO.log: panel boot, then
+    // ppActiveSeqID()+ppPrimeNow() a few seconds later with no import between.
   }
 
   function openSession(id) {
@@ -4682,8 +4757,9 @@ document.addEventListener('DOMContentLoaded', function () {
     clearDirty()
     hideHistory()
     editorContainer.focus()
-    CutCapCEP.evalScript('ppArmTransport()')
-    CutCapCEP.evalScript('ppWarmup()')
+    // Not primed here either — same reason as restoreLastSession above. Switching
+    // History sessions swaps what the editor shows; it places nothing in the
+    // sequence. This was the other half of the flash the user reported.
     // Flash "Changes saved" for the session we just left if it had unsaved edits.
     if (hadUnsaved) showToast('Changes saved', 'ok')
   }
@@ -4757,12 +4833,46 @@ document.addEventListener('DOMContentLoaded', function () {
     editorContainer.focus({ preventScroll: true })
   })
 
-  // Dismiss the panel on an outside click. (Escape is handled centrally by the
-  // single overlay-dismissal ladder — see the keydown handler further below.)
+  // ── Anchored-overlay dismissal: close on an outside press, and EAT that click ──
+  //
+  // Dismissing a dropdown must never ALSO trigger whatever sits under the cursor.
+  // Under these two overlays is the caption list, where any click runs
+  // selectCaption() + seekToMs() (cutcap-editor.js) — so a press that landed just
+  // outside an open History panel used to close it AND move Premiere's playhead in
+  // one gesture. That read as the overlay being see-through to pointer events.
+  //
+  // Mousedown in the CAPTURE phase, not click: editorContainer's own mousedown
+  // handler places the caret before any click fires, so swallowing at click time
+  // is already too late. Same approach CutCapSelect uses for its own dropdowns
+  // (cutcap-select.js) — kept separate because that swallow is private to it.
+  var swallowNextClick = false
+
+  // Every new press starts a fresh gesture, so clear any flag left armed by a
+  // press that never produced a click. An HTML5 drag suppresses the click
+  // entirely, so without this a press outside an open dropdown followed by a
+  // drag would leave the flag set and silently eat an unrelated click later.
+  // Registered BEFORE the per-surface handlers below so it runs first in capture.
+  document.addEventListener('mousedown', function () { swallowNextClick = false }, true)
+
+  function dismissOnOutsidePress(surface, trigger, hide) {
+    document.addEventListener('mousedown', function (e) {
+      if (surface.hidden) return
+      if (surface.contains(e.target) || trigger.contains(e.target)) return
+      hide()
+      swallowNextClick = true
+    }, true)
+  }
+
   document.addEventListener('click', function (e) {
-    if (historyPanel.hidden) return
-    if (!historyPanel.contains(e.target) && !btnHistory.contains(e.target)) hideHistory()
-  })
+    if (!swallowNextClick) return
+    swallowNextClick = false
+    e.stopPropagation()
+    e.preventDefault()
+  }, true)
+
+  // Dismiss the panel on an outside press. (Escape is handled centrally by the
+  // single overlay-dismissal ladder — see the keydown handler further below.)
+  dismissOnOutsidePress(historyPanel, btnHistory, hideHistory)
 
   // ── App (hamburger) menu + About modal ──
 
@@ -5205,10 +5315,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.target === aboutModal) closeAbout()   // click on the dark backdrop closes
   })
 
-  document.addEventListener('click', function (e) {
-    if (appMenu.hidden) return
-    if (!appMenu.contains(e.target) && !btnMenu.contains(e.target)) hideAppMenu()
-  })
+  // Same outside-press dismissal as History — and the same reason the click must
+  // be swallowed: the caption list underneath seeks Premiere on any click.
+  dismissOnOutsidePress(appMenu, btnMenu, hideAppMenu)
   // ── Overlay dismissal: the single Escape precedence ladder ──
   //
   // Every dismissable surface's Escape handling lives HERE, in one ordered
@@ -5517,8 +5626,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Arm Premiere's NATIVE timeline transport so the native Spacebar works on the
     // first press after import (see ppArmTransport in hostscript.jsx), then prime
     // the QE engine for Subtext's own play. Both best-effort, no-op safe.
-    CutCapCEP.evalScript('ppArmTransport()')
-    CutCapCEP.evalScript('ppWarmup()')
+    // Guarded panel-side to once per sequence — both operations are visible in
+    // the Program Monitor, and firing them on every import flashed it (#8 bug 3).
+    primeIfNeeded()
     var importedMsg = 'Imported ' + (label || 'captions')
     if (hadUnsaved) showToastSequence('Changes saved', 'ok', importedMsg, 'ok')
     else showToast(importedMsg, 'ok')
@@ -5663,20 +5773,61 @@ document.addEventListener('DOMContentLoaded', function () {
     if (isTextBox(e.target)) e.preventDefault()   // belt-and-braces: no input text-drags
   }, true)
 
-  editorContainer.addEventListener('dragover', function (e) {
-    e.preventDefault()
+  // Accept the drag across the WHOLE panel, not just the editor container.
+  //
+  // The browser paints the "no-drop" (🚫) cursor on any dragover that is not
+  // preventDefault()ed. With the handler on the editor container alone, dragging
+  // over the toolbar, the cleanup bar or the panel margins flipped the cursor
+  // between the drop box and the stop symbol repeatedly on the way to the drop
+  // target. Preventing at the document level makes the whole panel a valid
+  // target, so the cursor stays stable for the entire gesture.
+  //
+  // The drop-target outline is painted from THIS handler and cleared by a timer.
+  // It is deliberately never keyed off `dragleave`: the previous implementation
+  // removed the class when `dragleave`'s `relatedTarget` was outside the panel,
+  // but Chromium frequently reports that as null mid-drag, so `contains(null)`
+  // was false and the class was stripped instantly. On an empty panel there was
+  // almost no dragleave traffic and the outline survived; with captions loaded,
+  // dozens of child rows fired it constantly and the outline never appeared at
+  // all — which is exactly the case the user reported (issue #8 bug 5).
+  //
+  // A dragenter/dragleave depth counter would also balance out, and was rejected:
+  // it strands the outline on screen whenever a drag ends outside the window
+  // without a final dragleave, and re-entering then double-counts. The timer has
+  // no such failure mode. The drag-and-drop model re-fires `dragover` on the
+  // current target roughly every 350ms even while the pointer is held still, so
+  // a window comfortably longer than that holds the outline steady, and it
+  // self-clears once the events stop for any reason.
+  var dragHiTimer = null
+
+  function paintDropTarget() {
     editorContainer.classList.add('drag-over')
-  })
+    if (dragHiTimer) clearTimeout(dragHiTimer)
+    dragHiTimer = setTimeout(clearDropTarget, 500)
+  }
 
-  editorContainer.addEventListener('dragleave', function (e) {
-    if (!editorContainer.contains(e.relatedTarget)) {
-      editorContainer.classList.remove('drag-over')
-    }
-  })
-
-  editorContainer.addEventListener('drop', function (e) {
-    e.preventDefault()
+  function clearDropTarget() {
+    if (dragHiTimer) { clearTimeout(dragHiTimer); dragHiTimer = null }
     editorContainer.classList.remove('drag-over')
+  }
+
+  document.addEventListener('dragover', function (e) {
+    e.preventDefault()
+    paintDropTarget()
+  })
+
+  // A drag that ends without a drop (Esc, or released outside) fires dragend —
+  // clear at once rather than leaving the outline up for the timer's duration.
+  document.addEventListener('dragend', clearDropTarget)
+
+  // Drop is handled at the document level to match the dragover above. This is
+  // NOT optional: once dragover is prevented panel-wide the browser treats every
+  // spot as a valid drop, and an unhandled drop makes Chromium NAVIGATE to the
+  // dropped file — which would blank the panel. Handling it here also means a
+  // drop anywhere in the panel imports, instead of only inside the caption list.
+  document.addEventListener('drop', function (e) {
+    e.preventDefault()
+    clearDropTarget()
 
     // dataTransfer is only valid during this event, so capture the caption File
     // reference NOW (the confirm dialog below may defer the rest asynchronously).
@@ -6299,12 +6450,25 @@ document.addEventListener('DOMContentLoaded', function () {
   // <html>, persist it, then re-run the accent derivation (its wash alphas and
   // match-text colour are theme-aware, so skipping that step leaves the accent
   // tuned for the wrong background).
+  // Portfolio skin accent: the site's Ink, light and dark. Not persisted, so the
+  // plain demo URL keeps the visitor's own accent.
+  function skinAccent(){
+    if (document.documentElement.getAttribute('data-skin') !== 'portfolio') return null;
+    return document.documentElement.getAttribute('data-theme') === 'light' ? '#0d476e' : '#87ceeb';
+  }
+  function applyAccent(){
+    if (typeof CutCapTheme === 'undefined') return;
+    CutCapTheme.apply(skinAccent() || CutCapTheme.get());
+  }
+  if (document.readyState === 'complete') applyAccent();
+  else window.addEventListener('load', applyAccent);
+
   function setTheme(mode){
     try {
       if (mode === 'light') document.documentElement.setAttribute('data-theme', 'light');
       else document.documentElement.removeAttribute('data-theme');
       if (typeof CutCapStore !== 'undefined' && CutCapStore.setTheme) CutCapStore.setTheme(mode);
-      if (typeof CutCapTheme !== 'undefined') CutCapTheme.apply(CutCapTheme.get());
+      applyAccent();
     } catch (e) {}
     // Keep Settings' Dark/Light segmented control honest, best-effort.
     try {

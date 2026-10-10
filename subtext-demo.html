@@ -1703,7 +1703,9 @@ body { zoom: 1 !important; width: 100% !important; height: 100% !important;
    148px dead band under the cleanup bar. The division IS needed for vh units
    (they ignore zoom) which is why the panel's own stylesheet uses
    calc(100vh / var(--ui-zoom)) and this override must not copy that. */
-#app { zoom: var(--ui-zoom, 1) !important; transform: none !important;
+/* --demo-fit (2026-10-10): below 1 only when the frame is too narrow for the
+   toolbar at the chosen UI size (phones). Set by fitToFrame() in the guard. */
+#app { zoom: calc(var(--ui-zoom, 1) * var(--demo-fit, 1)) !important; transform: none !important;
        height: 100% !important;
        max-height: 100% !important;
        overflow: hidden !important; }
@@ -6462,6 +6464,37 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   if (document.readyState === 'complete') applyAccent();
   else window.addEventListener('load', applyAccent);
+
+  // FIT TO FRAME (2026-10-10). On a phone the embed is ~325px wide, and at the
+  // demo's 130% UI size the toolbar's right half and the third cleanup button
+  // were cut off. Shrink the whole panel just enough that the widest bar fits:
+  // reset to 1, let layout settle, compare each bar's content width with its
+  // box, and scale by the worst ratio. Desktop frames measure 1 and are untouched.
+  // ⚠ The panel lays itself out AFTER window.load (the seed runs late), so a
+  // single pass on load measured nothing and left the fit at 1. It now runs
+  // again at 300/1000/2000 ms, and each run refines up to 4 times because the
+  // toolbar's gaps do not shrink in proportion to the zoom.
+  // Synchronous on purpose: reading scrollWidth forces layout, and a
+  // requestAnimationFrame version never ran while the page was hidden (it
+  // stalled with a busy flag set and the fit stuck at 1).
+  function fitToFrame(){
+    var root = document.documentElement;
+    var fit = 1;
+    root.style.setProperty('--demo-fit', '1');
+    for (var pass = 0; pass < 4 && fit > 0.5; pass++) {
+      var worst = 1;
+      [document.querySelector('.toolbar'), document.getElementById('cleanup-bar')].forEach(function(el){
+        if (el && el.scrollWidth > el.clientWidth + 1) worst = Math.min(worst, el.clientWidth / el.scrollWidth);
+      });
+      if (worst >= 1) break;
+      fit = Math.max(0.5, Math.floor(fit * worst * 100) / 100);
+      root.style.setProperty('--demo-fit', String(fit));
+    }
+  }
+  function scheduleFit(){ fitToFrame(); setTimeout(fitToFrame, 300); setTimeout(fitToFrame, 1000); setTimeout(fitToFrame, 2000); }
+  if (document.readyState === 'complete') scheduleFit();
+  else window.addEventListener('load', scheduleFit);
+  window.addEventListener('resize', fitToFrame);
 
   function setTheme(mode){
     try {

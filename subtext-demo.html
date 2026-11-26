@@ -1746,23 +1746,23 @@ try {
 } catch (e) {}
 </script>
 <style>
-html[data-skin="portfolio"], html[data-skin="portfolio"] body { background: #0a1a26; }
-html[data-skin="portfolio"][data-theme="light"], html[data-skin="portfolio"][data-theme="light"] body { background: #e2f1fa; }
+html[data-skin="portfolio"], html[data-skin="portfolio"] body { background: rgb(20,27,39); }
+html[data-skin="portfolio"][data-theme="light"], html[data-skin="portfolio"][data-theme="light"] body { background: rgb(253,254,255); }
 html[data-skin="portfolio"] {
-  --bg: #0a1a26; --surface: #0e2230; --surface-hi: #1e303c;
-  --border: #22404f; --border-hi: #3d6278;
-  --text: #c4e4f5; --text-dim: #8cafc6; --text-muted: #5f8199; --text-time: #a9cde2;
-  --text-bright: #ffffff;
-  --radius: 0px; --radius-lg: 0px;
+  --bg: rgb(20,27,39); --surface: rgb(28,37,52); --surface-hi: rgb(38,49,68);
+  --border: rgba(255,255,255,0.16); --border-hi: rgba(255,255,255,0.28);
+  --text: rgb(253,254,255); --text-dim: rgb(185,198,214); --text-muted: rgb(135,151,172); --text-time: rgb(220,229,239);
+  --text-bright: rgb(253,254,255);
+  --radius: 8px; --radius-lg: 12px;
 }
 html[data-skin="portfolio"][data-theme="light"] {
-  --bg: #e2f1fa; --surface: #f1f9fe; --surface-hi: #d0e9f8;
-  --border: #badef3; --border-hi: #46a0d6;
-  --text: #0d476e; --text-dim: #628ca8; --text-muted: #8fb0c6; --text-time: #2a5f84;
-  --text-bright: #0a2d46;
+  --bg: rgb(253,254,255); --surface: rgb(245,249,252); --surface-hi: rgb(232,241,248);
+  --border: rgb(207,225,238); --border-hi: rgb(170,200,222);
+  --text: rgb(2,7,10); --text-dim: rgb(90,104,122); --text-muted: rgb(128,142,160); --text-time: rgb(45,56,70);
+  --text-bright: rgb(2,7,10);
 }
-html[data-skin="portfolio"] .demo-note { border-radius: 0; }
-html[data-skin="portfolio"] .demo-note .demo-note-cta { border-radius: 0; }
+html[data-skin="portfolio"] .demo-note { border-radius: 16px; }
+html[data-skin="portfolio"] .demo-note .demo-note-cta { border-radius: 999px; }
 </style>
 
 <script>
@@ -6452,11 +6452,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // <html>, persist it, then re-run the accent derivation (its wash alphas and
   // match-text colour are theme-aware, so skipping that step leaves the accent
   // tuned for the wrong background).
-  // Portfolio skin accent: the site's Ink, light and dark. Not persisted, so the
+  // Portfolio skin accent: the site's Site/Accent, light and dark. Not persisted, so the
   // plain demo URL keeps the visitor's own accent.
   function skinAccent(){
     if (document.documentElement.getAttribute('data-skin') !== 'portfolio') return null;
-    return document.documentElement.getAttribute('data-theme') === 'light' ? '#0d476e' : '#87ceeb';
+    return document.documentElement.getAttribute('data-theme') === 'light' ? '#0297DE' : '#2FB2EE';
   }
   function applyAccent(){
     if (typeof CutCapTheme === 'undefined') return;
